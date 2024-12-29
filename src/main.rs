@@ -1,9 +1,10 @@
-use std::fs;
-use std::io::{self, BufRead};
+use std::fs::File;
+use std::io::{self, BufRead, stdin, BufReader};
 use std::io::Write;
 use std::ptr::null;
 use std::ptr::null_mut;
 use std::vec;
+use std::fmt;
 
 
 struct Board {
@@ -20,43 +21,127 @@ fn output_string(buf: &str) {
     io::stdout().flush().unwrap();
 }
 
-fn create_board(filename: String) -> Board {
+fn create_board() -> Board {
     Board {
         rows: 0,
         cols: 0,
         loaded: false,
-        filename,
+        filename: "".to_string(),
         mine: Vec::new(),
         opp: Vec::new(),
     }
 }
 
-fn parse_command(mybuf: &str, &mut myboard: Board) {
-    let tokens = mybuf.split_whitespace();
-    let mut state = 0;
-    for tok in tokens {
-        if tok == "load" {
-            state = 1;
-            continue;
-        }
-        if tok == "guess" {
-            state = 2;
-            continue;
-        }
-        if state == 1 {     // Loading a file so the next token is the filename
-            println!("Loading the file <{}>", tok);
-            continue;
-        }
-        if state == 2 {     // Guess so load up query
+fn load_file(filename: &str, myboard: &mut Board) ->bool {
+    if filename.is_empty() {             // Empty string for filename
+        return false                           // Return false
+    }
+    match File::open(filename) {
+        Err(err) => {
+            output_string(&format!("Failed to open specified file: {}", err));
+            return false
+        },
+        Ok(file) => {                   // File is now open, time to read
+            let reader = BufReader::new(file);
+            let mut lines = reader.lines();
+
+            // First line
+            let row_line = match lines.next() {
+                Some(Ok(line)) => line,
+                None => {
+                    output_string("File is corrupt.  Missing rows.");
+                    return false;
+                }
+                Some(Err(err)) => {
+                    output_string(&format!("File is corrupt in the rows: {}", err));
+                    return false;
+                }
+            };
+
+            let col_line = match lines.next() {
+                Some(Ok(line)) => line,
+                None => {
+                    output_string("File is corrupt.  Missing columns.");
+                    return false;
+                }
+                Some(Err(err)) => {
+                    output_string(&format!("File is corrupt in the columns {}.",err));
+                    return false;
+                }
+            };
             
+            // Convert first line to integer
+            match row_line.trim().parse::<i16>() {
+                Ok(num) => myboard.rows = num,
+                Err(err) => {
+                    output_string(&format!("Failed to convert row to an integer {}.", err));
+                    return false;
+                }
+            }
+
+            // Convert second line to integer
+            match col_line.trim().parse::<i16>() {
+                Ok(num) => myboard.cols = num,
+                Err(err) => {
+                    output_string(&format!("Failed to convert columns to an integer {}.", err));
+                    return false;
+                }
+            }
+            
+            // Debug stuff
+            myboard.loaded = true;
+            println!("Myboard rows is: {}", myboard.rows);
+            println!("Myboard cols is: {}", myboard.cols);
+            return true;
         }
     }
+
 }
-fn eval_input(mybuf: String) {
+
+fn parse_command(mybuf: &str, myboard: &mut Board) {
+    let upper = mybuf.to_uppercase();
+    let mut tokens = upper.split_whitespace();
+    let command = tokens.next();
+
+    match command {
+        Some("LOAD") => {
+            if let Some(filename) = tokens.next() {
+                output_string(&format!("Loading the file <{}>", filename));
+                if load_file(filename, myboard) {
+                    output_string("File loaded successfully");
+                } else {
+                    output_string("File failed to load");
+                }
+            } else {
+                output_string("Usage: --load <filename>");
+            }
+        }
+        Some("GUESS") => {
+            for tok in tokens {
+                let guesses: Vec<&str> = tok.split(',').collect();
+                for guess in guesses {
+                    output_string(&format!("Checking array at {}:", guess));      // Query only the mine column now
+                }
+            }
+        }
+        Some("HELP") => {
+            output_string("Available commands: --load <filename>\n--guess <list in A1 or AA10 format>\n--help this output\n--exit or --quit to quit.");
+        }
+        Some(cmd) => {
+            output_string(&format!("Command not recognized: {}?", cmd));
+        }
+        None => {
+            output_string("Available commands: --load <filename>\n--guess <list in A1 or AA10 format>\n--help this output\n--exit or --quit to quit.");
+        },
+    }
+}
+    
+        
+fn eval_input(mybuf: String, myboard: &mut Board) {
     if mybuf.contains("--") {
         let tokens = mybuf.split("--").filter(|&x| !x.is_empty());     // Split on token command
         for tok in tokens {
-            println!("What up?! {:?}", tok);
+            parse_command(tok, myboard);
         }
     } else {
         println!("my buf is: {:?}", mybuf);
@@ -67,8 +152,8 @@ fn eval_input(mybuf: String) {
 fn main(){
     output_string("Welcome to the Battleship Test Program\nYou can type --help to get a list of commands");
     let mut buffer = String::new();
-    io::stdin().read_line(&mut buffer);
-    let myboard = create_board(filename);
-    eval_input(buffer);
+    io::stdin().read_line(&mut buffer).unwrap();
+    let mut myboard = create_board();
+    eval_input(buffer, &mut myboard);
 
 }
