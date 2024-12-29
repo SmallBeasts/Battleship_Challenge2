@@ -1,3 +1,4 @@
+use std::collections::btree_map::Values;
 use std::fs::File;
 use std::io::{self, BufRead, stdin, BufReader};
 use std::io::Write;
@@ -12,8 +13,8 @@ struct Board {
     cols: i16,
     loaded: bool,
     filename: String,
-    mine: Vec<i16>,
-    opp: Vec<i16>
+    mine: Vec<Vec<i16>>,
+    opp: Vec<Vec<i16>>
 }
 
 fn output_string(buf: &str) {
@@ -69,7 +70,7 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
                     return false;
                 }
             };
-            
+
             // Convert first line to integer
             match row_line.trim().parse::<i16>() {
                 Ok(num) => myboard.rows = num,
@@ -87,11 +88,46 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
                     return false;
                 }
             }
+            myboard.mine = vec![vec![0;myboard.cols as usize]; myboard.rows as usize];       // Initialize myboard.mine
+
+
+            for (i,line) in lines.enumerate().take(myboard.rows as usize) {
+                match line {
+                    Ok(line_str) => {
+                        let parts: Vec<&str> = line_str.split(',').collect();
+                        for (j,part) in parts.iter().enumerate() {
+                            match part.trim().parse::<i16>() {
+                                Ok(val) => {
+                                    if i < myboard.mine.len() && j < myboard.mine[0].len() && (val <= i16::MAX && val >= i16::MIN) {
+                                        myboard.mine[i][j] = val;
+                                    }
+                                    else {
+                                        output_string(&format!("OOB at Column {}, on row {}", j, i));
+                                        return false;
+                                    }
+                                }
+                                Err(e) => {
+                                    output_string(&format!("Failed to parse column index: {}", e));
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        output_string(&format!("Error parsing line {}: {}", i+1, e));
+                        return false;
+                    }
+                }
+            }
+
+            
+            
             
             // Debug stuff
             myboard.loaded = true;
             println!("Myboard rows is: {}", myboard.rows);
             println!("Myboard cols is: {}", myboard.cols);
+            println!("Myboard mine is: {:?}", myboard.mine);
             return true;
         }
     }
