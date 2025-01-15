@@ -13,6 +13,7 @@ struct Board {
     rows: i16,
     cols: i16,
     loaded: bool,
+    interactive: bool,
     filename: String,
     mine: Vec<Vec<i16>>,
     opp: Vec<Vec<i16>>
@@ -271,14 +272,112 @@ fn eval_input(mybuf: String, myboard: &mut Board) -> bool {
     false
 }
 
+// Function to translate a Column Row notation into a query notation
+fn translate_query(mybuf: &str) -> Result<(i16, i16), String> {
+    let mut row_raw = String::new();
+    let mut col_raw = String::new();
+
+    for c in mybuf.chars() {
+        if c.is_ascii_uppercase() {
+            col_raw.push(c);
+        } else if c.is_ascii_digit() {
+            row_raw.push(c);
+        }
+    }
+
+    if row_raw.is_empty() || col_raw.is_empty() {
+        return Err("Invalid guess: missing row or column.".to_string());
+    }
+
+    let mut col_index: i16 = 0;
+    for c in col_raw.chars() {
+        col_index = col_index * 26 + (c as u8 - b'A') as i16;
+    }
+
+    let row_index = row_raw.parse::<i16>().map_err(|_| "Invalid row index.".to_string())?;
+
+    Ok((col_index, row_index))
+}
+
+// This function only is for the command line
+fn command_line_input(myboard: &mut Board) {
+    let args: Vec<String> = std::env::args().collect();
+    let mut args_iter = args.iter().skip(1); // Skip program name
+
+    while let Some(arg) = args_iter.next() {
+        match arg.to_uppercase().as_str() {
+            "--LOAD" => {
+                if myboard.loaded {
+                    *myboard = create_board();
+                }
+                if let Some(filename) = args_iter.next() {
+                    if load_file(filename, myboard) {
+                        output_string("File loaded successfully.");
+                    } else {
+                        output_string("File was not found, please enter the full path.");
+                    }
+                } else {
+                    output_string("Usage: --load <filename>");
+                }
+            }
+            "--HELP" => {
+                output_string("Available commands: --load <filename>\n--guess <list in A1 or AA10 format>\n--help (this output)\n--exit or --quit to quit.");
+            }
+            "--EXIT" | "--QUIT" => {
+                output_string("Thank you for enjoying Battleship Test Rust version 1.");
+                break;
+            }
+            "--GUESS" => {
+                let mut guesses = String::new();
+
+                while let Some(next_guess) = args_iter.next() {
+                    if next_guess.starts_with("--") {
+                        args_iter = std::iter::once(next_guess).chain(args_iter);
+                        break;
+                    }
+                    match translate_query(next_guess) {
+                        Ok((col, row)) => {
+                            if col >= myboard.cols as i16 || row >= myboard.rows as i16 {
+                                guesses.push_str("OOB,"); // Out of bounds
+                            } else {
+                                guesses.push_str(&format!("{},", myboard.mine[row as usize][col as usize]));
+                            }
+                        }
+                        Err(err) => {
+                            output_string(&format!("Error: {}", err));
+                        }
+                    }
+                }
+
+                if !guesses.is_empty() {
+                    guesses.pop(); // Remove trailing comma
+                }
+                output_string(&guesses);
+            }
+            _ => {
+                output_string(&format!("Unknown command: {}", arg));
+            }
+        }
+    }
+}
+
+
 fn main(){
     output_string("Welcome to the Battleship Test Program\nYou can type --help to get a list of commands");
     let mut myboard = create_board();
-    loop {
-        let mut buffer = String::new();
-        io::stdin().read_line(&mut buffer).unwrap();
-        if eval_input(buffer, &mut myboard) {
-            break;
+    if env::Args().len() <= 1 {
+        output_string("No command line arguments entered.");
+        myboard.interactive = true;
+    } else {
+        command_line_input(myboard: &mut Board);
+    }
+    if myboard.interactive == true {                                // Only enter loop if interactive set
+        loop {
+            let mut buffer = String::new();
+            io::stdin().read_line(&mut buffer).unwrap();
+            if eval_input(buffer, &mut myboard) {
+                break;
+            }
         }
     }
 }
