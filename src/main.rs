@@ -29,11 +29,13 @@ fn create_board() -> Board {
         rows: 0,
         cols: 0,
         loaded: false,
+        interactive: false,
         filename: "".to_string(),
         mine: Vec::new(),
         opp: Vec::new(),
     }
 }
+
 
 fn load_file(filename: &str, myboard: &mut Board) ->bool {
     if filename.is_empty() {             // Empty string for filename
@@ -277,11 +279,13 @@ fn translate_query(mybuf: &str) -> Result<(i16, i16), String> {
     let mut row_raw = String::new();
     let mut col_raw = String::new();
 
-    for c in mybuf.chars() {
+    for c in mybuf.to_uppercase().chars() {
         if c.is_ascii_uppercase() {
             col_raw.push(c);
         } else if c.is_ascii_digit() {
             row_raw.push(c);
+        } else if c.is_whitespace() {
+            continue;
         }
     }
 
@@ -321,7 +325,10 @@ fn command_line_input(myboard: &mut Board) {
                 }
             }
             "--HELP" => {
-                output_string("Available commands: --load <filename>\n--guess <list in A1 or AA10 format>\n--help (this output)\n--exit or --quit to quit.");
+                output_string(
+                    "Available commands: \
+                     --load <filename>\n--guess <list in A1 or AA10 format>\n--help (this output)\n--exit or --quit to quit.",
+                );
             }
             "--EXIT" | "--QUIT" => {
                 output_string("Thank you for enjoying Battleship Test Rust version 1.");
@@ -330,10 +337,10 @@ fn command_line_input(myboard: &mut Board) {
             "--GUESS" => {
                 let mut guesses = String::new();
 
+                // Process guesses until we encounter a new command or run out of arguments
                 while let Some(next_guess) = args_iter.next() {
                     if next_guess.starts_with("--") {
-                        args_iter = std::iter::once(next_guess).chain(args_iter);
-                        break;
+                        break; // Stop processing guesses
                     }
                     match translate_query(next_guess) {
                         Ok((col, row)) => {
@@ -365,11 +372,11 @@ fn command_line_input(myboard: &mut Board) {
 fn main(){
     output_string("Welcome to the Battleship Test Program\nYou can type --help to get a list of commands");
     let mut myboard = create_board();
-    if env::Args().len() <= 1 {
+    if std::env::args().len() <= 1 {
         output_string("No command line arguments entered.");
         myboard.interactive = true;
     } else {
-        command_line_input(myboard: &mut Board);
+        command_line_input(&mut myboard);
     }
     if myboard.interactive == true {                                // Only enter loop if interactive set
         loop {
