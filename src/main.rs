@@ -36,16 +36,24 @@ fn create_board() -> Board {
     }
 }
 
+// Handling repetitive file errors
+fn handle_file_error(err: io::Error) -> bool {
+    output_string(&format!("Failed to open specified file: {}", err));
+    false
+}
+
+// Handle repetitive parsing errors when converting string to int
+fn handle_parse_error<T>(err: &str) -> bool {
+    output_string(&format!("Failed to parse value: {}", err));
+    false
+}
 
 fn load_file(filename: &str, myboard: &mut Board) ->bool {
     if filename.is_empty() {             // Empty string for filename
         return false                           // Return false
     }
     match File::open(filename) {
-        Err(err) => {
-            output_string(&format!("Failed to open specified file: {}", err));
-            return false
-        },
+        Err(err) => handle_file_error(err), 
         Ok(file) => {                   // File is now open, time to read
             let reader = BufReader::new(file);
             let mut lines = reader.lines();
@@ -77,20 +85,27 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
 
             // Convert first line to integer
             match row_line.trim().parse::<i16>() {
-                Ok(num) => myboard.rows = num,
-                Err(err) => {
-                    output_string(&format!("Failed to convert row to an integer {}.", err));
-                    return false;
-                }
+                Ok(num) => {
+                    if num > 0 && num <= i16::MAX {                         // Confirm Rows are positive i16
+                        myboard.rows = num;
+                    } else {
+                        output_string("Rows are sent as a negative number.");
+                        return false;
+                    }
+                },
+                Err(err) => handle_parse_error(err)
             }
 
             // Convert second line to integer
             match col_line.trim().parse::<i16>() {
-                Ok(num) => myboard.cols = num,
-                Err(err) => {
-                    output_string(&format!("Failed to convert columns to an integer {}.", err));
-                    return false;
-                }
+                Ok(num) => {
+                    if num > 0 && num <= i16::MAX {                     // Confirm columns are positive i16
+                        myboard.cols = num;
+                    } else {
+                        output_string("Columns are too large or too small.");
+                    }
+                },
+                Err(err) => handle_parse_error(err)
             }
             myboard.mine = vec![vec![0;myboard.cols as usize]; myboard.rows as usize];       // Initialize myboard.mine
 
@@ -110,7 +125,7 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
                             }
                             match part.trim().parse::<i16>() {
                                 Ok(val) => {
-                                    if i < myboard.mine.len() && j < myboard.mine[0].len() && (val <= i16::MAX && val >= i16::MIN) {
+                                    if i < myboard.mine.len() && j < myboard.mine[i].len() && (val <= i16::MAX && val >= i16::MIN) {
                                         myboard.mine[i][j] = val;
                                     }
                                     else {
@@ -274,6 +289,23 @@ fn eval_input(mybuf: String, myboard: &mut Board) -> bool {
     false
 }
 
+// Specific enum to give individual instances as errors.
+enum QueryError {
+    InvalidFormat,
+    InvalidRow,
+    InvalidColumn,
+    OutOfBounds,
+}
+
+// Function to return base 26 for the columns
+fn base_26(buf: String) -> i16 {
+    let mut col_index: i16 = 0;
+    for c in buf.chars() {
+        col_index = col_index * 26 + (c as u8 - b'A') as i16;
+    }
+    col_index
+}
+
 // Function to translate a Column Row notation into a query notation
 fn translate_query(mybuf: &str) -> Result<(i16, i16), String> {
     let mut row_raw = String::new();
@@ -290,15 +322,12 @@ fn translate_query(mybuf: &str) -> Result<(i16, i16), String> {
     }
 
     if row_raw.is_empty() || col_raw.is_empty() {
-        return Err("Invalid guess: missing row or column.".to_string());
+        return Err(QueryError::InvalidFormat);
     }
 
-    let mut col_index: i16 = 0;
-    for c in col_raw.chars() {
-        col_index = col_index * 26 + (c as u8 - b'A') as i16;
-    }
+    let mut col_index = base_26(col_raw);
 
-    let row_index = row_raw.parse::<i16>().map_err(|_| "Invalid row index.".to_string())?;
+    let row_index = row_raw.parse::<i16>().map_err(|_| QueryError::InvalidRow)?;
 
     Ok((col_index, row_index))
 }
@@ -351,7 +380,12 @@ fn command_line_input(myboard: &mut Board) {
                             }
                         }
                         Err(err) => {
-                            output_string(&format!("Error: {}", err));
+                            match err {
+                                QueryError::InvalidFormat => output_string("Invalid guess format"),
+                                QueryError::InvalidRow => output_string("Invalid row format"),
+                                QueryError::InvalidColumn => output_string("Invalid column format"),
+                                QueryError::OutOfBounds => output_string("Guess is out of bounds"),
+                            }
                         }
                     }
                 }
