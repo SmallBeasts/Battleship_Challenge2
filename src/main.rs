@@ -19,6 +19,25 @@ struct Board {
     opp: Vec<Vec<i16>>
 }
 
+// This structure will be the main board per player
+strict New_Board {
+    playername: String,
+    playernum: i16,
+    mine: Vec<Vec<i16>>
+}
+
+// This will be the main game data storage.  Boards will only be stored inside a Vector
+struct Game_Data {
+    rows: i16,
+    cols: i16,
+    player_count: i16,
+    loaded: bool,
+    interactive: bool,
+    filename: String,
+    boards: Vec<New_Board>
+}
+
+
 fn output_string(buf: &str) {
     print!("{}\n:> ", buf);
     io::stdout().flush().unwrap();
