@@ -20,7 +20,7 @@ struct Board {
 }
 
 // This structure will be the main board per player
-strict New_Board {
+struct New_Board {
     playername: String,
     playernum: i16,
     mine: Vec<Vec<i16>>
@@ -62,7 +62,7 @@ fn handle_file_error(err: io::Error) -> bool {
 }
 
 // Handle repetitive parsing errors when converting string to int
-fn handle_parse_error<T>(err: &str) -> bool {
+fn handle_parse_error(err: &str) -> bool {
     output_string(&format!("Failed to parse value: {}", err));
     false
 }
@@ -112,7 +112,10 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
                         return false;
                     }
                 },
-                Err(err) => handle_parse_error(err)
+                Err(err) => {
+                    handle_parse_error(&err.to_string());
+                    return false;
+                }
             }
 
             // Convert second line to integer
@@ -124,7 +127,10 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
                         output_string("Columns are too large or too small.");
                     }
                 },
-                Err(err) => handle_parse_error(err)
+                Err(err) => {
+                    handle_parse_error(&err.to_string());
+                    return false;
+                }
             }
             myboard.mine = vec![vec![0;myboard.cols as usize]; myboard.rows as usize];       // Initialize myboard.mine
 
@@ -326,7 +332,7 @@ fn base_26(buf: String) -> i16 {
 }
 
 // Function to translate a Column Row notation into a query notation
-fn translate_query(mybuf: &str) -> Result<(i16, i16), String> {
+fn translate_query(mybuf: &str) -> Result<(i16, i16), QueryError> {
     let mut row_raw = String::new();
     let mut col_raw = String::new();
 
