@@ -57,13 +57,13 @@ fn create_board() -> Board {
 
 // Handling repetitive file errors
 fn handle_file_error(err: io::Error) -> bool {
-    output_string(&format!("Failed to open specified file: {}", err));
+    output_string(&format!("Error: Failed to open specified file: {}", err));
     false
 }
 
 // Handle repetitive parsing errors when converting string to int
 fn handle_parse_error(err: &str) -> bool {
-    output_string(&format!("Failed to parse value: {}", err));
+    output_string(&format!("Error: Failed to parse value: {}", err));
     false
 }
 
@@ -81,11 +81,11 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
             let row_line = match lines.next() {
                 Some(Ok(line)) => line,
                 None => {
-                    output_string("File is corrupt.  Missing rows.");
+                    output_string("Error: File is corrupt.  Missing rows.");
                     return false;
                 }
                 Some(Err(err)) => {
-                    output_string(&format!("File is corrupt in the rows: {}", err));
+                    output_string(&format!("Error: File is corrupt in the rows: {}", err));
                     return false;
                 }
             };
@@ -93,11 +93,11 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
             let col_line = match lines.next() {
                 Some(Ok(line)) => line,
                 None => {
-                    output_string("File is corrupt.  Missing columns.");
+                    output_string("Error: File is corrupt.  Missing columns.");
                     return false;
                 }
                 Some(Err(err)) => {
-                    output_string(&format!("File is corrupt in the columns {}.",err));
+                    output_string(&format!("Error: File is corrupt in the columns {}.",err));
                     return false;
                 }
             };
@@ -108,7 +108,7 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
                     if num > 0 && num <= i16::MAX {                         // Confirm Rows are positive i16
                         myboard.rows = num;
                     } else {
-                        output_string("Rows are sent as a negative number.");
+                        output_string("Error: Rows are sent as a negative number.");
                         return false;
                     }
                 },
@@ -124,7 +124,7 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
                     if num > 0 && num <= i16::MAX {                     // Confirm columns are positive i16
                         myboard.cols = num;
                     } else {
-                        output_string("Columns are too large or too small.");
+                        output_string("Error: Columns are too large or too small.");
                     }
                 },
                 Err(err) => {
@@ -137,7 +137,7 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
 
             for (i,line) in lines.enumerate().take(myboard.rows as usize) {
                 if i as i16 > myboard.rows {
-                    output_string(&format!("The row is greater than the total number of rows {}", i));
+                    output_string(&format!("Error: The row is greater than the total number of rows {}", i));
                     return false;
                 }
                 match line {
@@ -145,7 +145,7 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
                         let parts: Vec<&str> = line_str.split(',').collect();
                         for (j,part) in parts.iter().enumerate() {
                             if j as i16 > myboard.cols {
-                                output_string(&format!("Column {} is greater than {}", j, myboard.cols));
+                                output_string(&format!("Error: Column {} is greater than {}", j, myboard.cols));
                                 return false;
                             }
                             match part.trim().parse::<i16>() {
@@ -159,7 +159,7 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
                                     }
                                 }
                                 Err(e) => {
-                                    output_string(&format!("Failed to parse column index: {}", e));
+                                    output_string(&format!("Error: Failed to parse column index: {}", e));
                                     return false;
                                 }
                             }
@@ -182,7 +182,7 @@ fn query_array(mybuf: &str, myboard: &mut Board) -> Result<i16, String> {
     let mut row_str = String::new();
     let mut col_str = String::new();
     if myboard.loaded == false {
-        return Err("You have not loaded a file yet!".to_string());
+        return Err("Error: You have not loaded a file yet!".to_string());
     }
 
     for c in mybuf.chars() {
