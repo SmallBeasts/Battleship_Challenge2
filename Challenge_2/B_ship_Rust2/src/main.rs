@@ -10,10 +10,24 @@ use std::process;
 
 
 // This structure will be the main board per player
-struct New_Board {
+struct Play_board {
     playername: String,
     playernum: i16,
     mine: Vec<Vec<i16>>
+}
+
+fn create_player(rows: i16, cols: i16) -> Play_board {
+    let mut mine = Vec::with_capacity(rows as usize);
+
+    for _ in 0..rows {
+        mine.push(vec![0; cols as usize]);
+    }
+
+    Play_board {
+        playername: String::new(),
+        playernum: 0,
+        mine: mine
+    }
 }
 
 // This will be the main game data storage.  Boards will only be stored inside a Vector
@@ -24,7 +38,7 @@ struct Game_Data {
     loaded: bool,
     interactive: bool,
     filename: String,
-    boards: Vec<New_Board>
+    boards: Vec<play_board>
 }
 
 
@@ -63,19 +77,19 @@ fn handle_player_parse_error(err: &str) -> bool {
     false
 }
 
-fn load_file_game_data(line: &str, myboard: &mut Game_Data, line_num: i16) -> Result<bool, String> {
-    let tmp_line = line;
-    if line.len() = 0 {
+fn load_file_game_data(line: &str, myboard: &mut Game_Data, line_num: i16) -> Result<(), String> {
+    let mut tmp_line = line;
+    if line.is_empty() {
         return Err(format!("Error: Empty line at {}", line_num));
     }
     // Rows handling
     match line_num {
-        Some(0) => {
+        0 => {
             match tmp_line.trim().parse::<i16>() {
                 Ok(num) => {
-                    if num < i16::MAX && num > 0 {
+                    if num > 0 {
                         myboard.rows = num;
-                        return Ok(true);
+                        return Ok(());
                     }
                     else {
                         return Err(format!("Error: Invalid row_size value {}", num));
@@ -87,12 +101,12 @@ fn load_file_game_data(line: &str, myboard: &mut Game_Data, line_num: i16) -> Re
             }
         }
         // Columns parsing
-        Some(1) => {
+        1 => {
             match tmp_line.trim().parse::<i16>() {
                 Ok(num) => {
-                    if num < i16::MAX && num > 0 {
+                    if num > 0 {
                         myboard.cols = num;
-                        return Ok(true);
+                        return Ok(());
                     }
                     else {
                         return Err(format!("Error: Invalid col_size value {}", num));
@@ -104,12 +118,12 @@ fn load_file_game_data(line: &str, myboard: &mut Game_Data, line_num: i16) -> Re
             }
         }
         // Handle player count
-        Some(2) => {
+        2 => {
             match tmp_line.trim().parse::<i16>() {
                 Ok(num) => {
                     if num < i16::MAX && num > 0 {
                         myboard.player_count = num;
-                        return Ok(true);
+                        return Ok(());
                     }
                     else {
                         return Err(format!("Error: Invalid player_count value {}", num));
@@ -120,12 +134,71 @@ fn load_file_game_data(line: &str, myboard: &mut Game_Data, line_num: i16) -> Re
                 }
             }
         }
-        None => return Err("Went too far, not sure why.")
+        _ => {
+            return Err("Went too far, not sure why.".to_string())
+        }
     }
 }
 
-fn load_player_game_data(line: &str, myboard: &mut Game_Data) {
-    // Fill this.
+// Pass the player data in as a whole, so iterate through.
+fn load_player_game_data(reader: &mut BufReader, myboard: &mut Game_Data) -> Result<String>{
+    //The iterorator is at the beginning move forward.
+    let mut lines = reader;
+    let mut count = 0;
+    let mut play_count = 0;
+    lines.next();
+    lines.next();
+    while let Some(line) = lines.next() {
+        match line.trim() {                 
+            Some(data) => {
+                if data.contains(',') {                 // Board data outside of a player struct
+                    return Err(format!("Error: Unexpected data at line {}"), count);
+                }
+                else {                                  // This should be player name
+                    count = 0;                          // Reset count
+                    if data.is_empty() {
+                        return Err(format!("Error: Playername is incorrect {}"), play_count + 1);
+                    }
+                    else {
+                        play_count += 1;
+                        let mut newboard = create_player();
+                        newboard.playername = data.to_string();
+                        newboard.playernum = play_count;
+                        while let Some(row) = lines.next() {              // Advance the line
+                            count += 1;
+                            if count > myboard.rows {
+                                return Err(format!("Error: Too many rows in player {}"), play_count);
+                            }
+                            let parts: Vec<&str> = row.as_str().split(',').collect();
+                            if parts.len() > myboard.cols {
+                                return Err(format!("Error: Too many columns at row {}, in player {}"), count, play_count);
+                            }
+                            for (j, num) in parts.enumerate() {
+                                match num.trim().parse::<i16>() {
+                                    Ok(val) => {
+                                        if val < newboard.mine.len() && val < newboard.mine[count].len() {
+                                            newboard.mine[count - 1][j] = val;
+                                        }
+                                        else {
+                                            return Err(format!("Error: OOB at column {}, on row {}"), j, count);
+                                        }
+                                    }
+                                    Err(err) => {
+                                        return Err(format!("Error: Failed to parse column at index {}"), err);
+                                    }
+                                }
+                            }
+                            if count == myboard.rows {
+                                myboard.boards.push(newboard);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok("".to_string())
 }
 
 fn load_file(filename: &str, myboard: &mut Board) ->bool {
@@ -149,16 +222,11 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
                 }
                 // Now we are into player names and the grids
                 else {
-                    match result2 = load_player_game_data(line, myboard) {
-                        Ok(true) => continue,
-                        Err(err) => {
-                            output_string(err);
-                            return false
-                        }                    }
+                    break;
                 }
             }
             // Now since we know the size of the boards and the players for loop through each line
-
+            load_player_game_data(reader.lines(), myboard);
             myboard.mine = vec![vec![0;myboard.cols as usize]; myboard.rows as usize];       // Initialize myboard.mine
 
 
