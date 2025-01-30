@@ -120,7 +120,12 @@ fn load_file_game_data(line: &str, myboard: &mut Game_Data, line_num: i16) -> Re
                 }
             }
         }
+        None => return Err("Went too far, not sure why.")
     }
+}
+
+fn load_player_game_data(line: &str, myboard: &mut Game_Data) {
+    // Fill this.
 }
 
 fn load_file(filename: &str, myboard: &mut Board) ->bool {
@@ -144,65 +149,16 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
                 }
                 // Now we are into player names and the grids
                 else {
-                    break;
+                    match result2 = load_player_game_data(line, myboard) {
+                        Ok(true) => continue,
+                        Err(err) => {
+                            output_string(err);
+                            return false
+                        }                    }
                 }
             }
+            // Now since we know the size of the boards and the players for loop through each line
 
-            // First line
-            let row_line = match lines.next() {
-                Some(Ok(line)) => line,
-                None => {
-                    output_string("Error: File is corrupt.  Missing rows.");
-                    return false;
-                }
-                Some(Err(err)) => {
-                    output_string(&format!("Error: File is corrupt in the rows: {}", err));
-                    return false;
-                }
-            };
-
-            let col_line = match lines.next() {
-                Some(Ok(line)) => line,
-                None => {
-                    output_string("Error: File is corrupt.  Missing columns.");
-                    return false;
-                }
-                Some(Err(err)) => {
-                    output_string(&format!("Error: File is corrupt in the columns {}.",err));
-                    return false;
-                }
-            };
-
-            // Convert first line to integer
-            match row_line.trim().parse::<i16>() {
-                Ok(num) => {
-                    if num > 0 && num <= i16::MAX {                         // Confirm Rows are positive i16
-                        myboard.rows = num;
-                    } else {
-                        output_string("Error: Rows are sent as a negative number.");
-                        return false;
-                    }
-                },
-                Err(err) => {
-                    handle_parse_error(&err.to_string());
-                    return false;
-                }
-            }
-
-            // Convert second line to integer
-            match col_line.trim().parse::<i16>() {
-                Ok(num) => {
-                    if num > 0 && num <= i16::MAX {                     // Confirm columns are positive i16
-                        myboard.cols = num;
-                    } else {
-                        output_string("Error: Columns are too large or too small.");
-                    }
-                },
-                Err(err) => {
-                    handle_parse_error(&err.to_string());
-                    return false;
-                }
-            }
             myboard.mine = vec![vec![0;myboard.cols as usize]; myboard.rows as usize];       // Initialize myboard.mine
 
 
