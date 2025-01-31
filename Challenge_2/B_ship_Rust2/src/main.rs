@@ -161,7 +161,7 @@ fn load_player_game_data(reader: &mut BufReader, myboard: &mut Game_Data) -> Res
                     }
                     else {
                         play_count += 1;
-                        let mut newboard = create_player();
+                        let mut newboard = create_player(myboard.rows, myboard.cols);
                         newboard.playername = data.to_string();
                         newboard.playernum = play_count;
                         while let Some(row) = lines.next() {              // Advance the line
