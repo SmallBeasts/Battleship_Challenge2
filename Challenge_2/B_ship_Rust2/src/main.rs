@@ -10,20 +10,20 @@ use std::process;
 
 
 // This structure will be the main board per player
-struct Play_board {
+struct PlayBoard {
     playername: String,
     playernum: i16,
     mine: Vec<Vec<i16>>
 }
 
-fn create_player(rows: i16, cols: i16) -> Play_board {
+fn create_player(rows: i16, cols: i16) -> PlayBoard {
     let mut mine = Vec::with_capacity(rows as usize);
 
     for _ in 0..rows {
         mine.push(vec![0; cols as usize]);
     }
 
-    Play_board {
+    PlayBoard {
         playername: String::new(),
         playernum: 0,
         mine: mine
@@ -31,14 +31,14 @@ fn create_player(rows: i16, cols: i16) -> Play_board {
 }
 
 // This will be the main game data storage.  Boards will only be stored inside a Vector
-struct Game_Data {
+struct GameData {
     rows: i16,
     cols: i16,
     player_count: i16,
     loaded: bool,
     interactive: bool,
     filename: String,
-    boards: Vec<Play_board>
+    boards: Vec<PlayBoard>
 }
 
 
@@ -47,8 +47,8 @@ fn output_string(buf: &str) {
 }
 
 // This will create a new game board with empty Vec for boards
-fn create_game() -> Game_Data {
-    Game_Data {
+fn create_game() -> GameData {
+    GameData {
         rows: 0,
         cols: 0,
         player_count: 0,
@@ -76,7 +76,7 @@ fn handle_player_parse_error(err: &str) -> bool {
     false
 }
 
-fn load_file_game_data(line: &str, myboard: &mut Game_Data, line_num: i16) -> Result<(), String> {
+fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: i16) -> Result<(), String> {
     let mut tmp_line = line;
     if line.is_empty() {
         return Err(format!("Error: Empty line at {}", line_num));
@@ -140,8 +140,7 @@ fn load_file_game_data(line: &str, myboard: &mut Game_Data, line_num: i16) -> Re
 }
 
 // Pass the player data in as a whole, so iterate through.
-fn load_player_game_data(lines: &mut impl Iterator<Item = io::Result<String>>, myboard: &mut Game_Data) -> Result<String> {
-    //The iterator is at the beginning move forward.
+fn load_player_game_data(lines: &mut impl Iterator<Item = io::Result<String>>, myboard: &mut GameData) -> Result<(), String> {
 
     let mut count = 0;
     let mut play_count = 0;
@@ -160,20 +159,20 @@ fn load_player_game_data(lines: &mut impl Iterator<Item = io::Result<String>>, m
                 let mut newboard = create_player(myboard.rows, myboard.cols);
                 newboard.playername = data.to_string();
                 newboard.playernum = play_count;
-                while let Some(row) = lines.next() {              // Advance the line
+                while let Some(Ok(row)) = lines.next() {              // Advance the line
                     count += 1;
                     if count > myboard.rows {
                         return Err(format!("Error: Too many rows in player {}", play_count));
                     }
                     let parts: Vec<&str> = row.as_str().split(',').collect();
-                    if parts.len() > myboard.cols {
+                    if parts.len() > myboard.cols as usize {
                         return Err(format!("Error: Too many columns at row {}, in player {}", count, play_count));
                     }
                     for (j, num) in parts.iter().enumerate() {
                         match num.trim().parse::<i16>() {
                             Ok(val) => {
-                                if count - 1 < newboard.mine.len() && j < newboard.mine[count - 1].len() {
-                                    newboard.mine[count - 1][j] = val;
+                                if count - 1 < newboard.mine.len() as i16 && j < newboard.mine[(count - 1) as usize].len() {
+                                    newboard.mine[(count - 1) as usize][j] = val;
                                 }
                                 else {
                                     return Err(format!("Error: OOB at column {}, on row {}", j, count));
@@ -192,10 +191,10 @@ fn load_player_game_data(lines: &mut impl Iterator<Item = io::Result<String>>, m
             }
         }
     }
-    Ok("".to_string())
+    Ok(())
 }
 
-fn load_file(filename: &str, myboard: &mut Game_Data) ->bool {
+fn load_file(filename: &str, myboard: &mut GameData) ->bool {
     if filename.is_empty() {             // Empty string for filename
         return false                           // Return false
     }
@@ -204,9 +203,9 @@ fn load_file(filename: &str, myboard: &mut Game_Data) ->bool {
         Ok(file) => {                   // File is now open, time to read
             let reader = BufReader::new(file);
             let mut lines = reader.lines();
-            for (line_num, line) in lines.enumerate() {
+            for (line_num, line) in lines.by_ref().enumerate() {
                 if line_num < 3{
-                    match load_file_game_data(&line.unwrap(), myboard, line_num) {
+                    match load_file_game_data(&line.unwrap(), myboard, line_num as i16) {
                         Ok(()) => continue,
                         Err(err) => {
                             output_string(&err);
@@ -226,7 +225,7 @@ fn load_file(filename: &str, myboard: &mut Game_Data) ->bool {
                     return true;
                 }
                 Err(err) => {
-                    output_string(err);
+                    output_string(&format!("{}",err));
                     return false;
                 }
             }
@@ -235,7 +234,7 @@ fn load_file(filename: &str, myboard: &mut Game_Data) ->bool {
     }
 }
 
-fn query_array(mybuf: &str, myboard: &mut Board) -> Result<i16, String> {
+fn query_array(mybuf: &str, myboard: &mut GameData, playerid: i16) -> Result<i16, String> {
     let mut row_str = String::new();
     let mut col_str = String::new();
     if myboard.loaded == false {
@@ -268,15 +267,16 @@ fn query_array(mybuf: &str, myboard: &mut Board) -> Result<i16, String> {
         }
     };
 
-    if row_index < myboard.mine.len() && col_index < myboard.mine[0].len() {
-        Ok(myboard.mine[row_index][col_index])
+    if row_index < myboard.boards[playerid as usize].mine.len() && col_index < myboard.boards[playerid as usize].mine[row_index].len() {
+        Ok(myboard.boards[playerid as usize].mine[row_index][col_index])
     }
     else {
         Err(format!("Query out of bounds: Row {}, Column {}", row_index + 1, col_index + 1))
     }
 }
 
-fn parse_command(mybuf: &str, myboard: &mut Board) -> bool {
+
+fn parse_command(mybuf: &str, myboard: &mut GameData) -> bool {
     let upper = mybuf.to_uppercase();
     let mut tokens = upper.split_whitespace();
     let command = tokens.next();
@@ -284,7 +284,7 @@ fn parse_command(mybuf: &str, myboard: &mut Board) -> bool {
         Some("LOAD") => {
             if myboard.loaded {
                 output_string("A previous board was loaded, now loading new file.");
-                *myboard = create_board();
+                *myboard = create_game();
             }
             if let Some(filename) = tokens.next() {
                 output_string(&format!("Loading the file <{}>", filename));
@@ -307,9 +307,19 @@ fn parse_command(mybuf: &str, myboard: &mut Board) -> bool {
             let mut oob_messages = Vec::new();
 
             for tok in tokens {
+                let mut tmp_id: i16 = -1;
                 let guesses: Vec<&str> = tok.split(',').collect();
-                for guess in guesses {
-                    match query_array(guess, myboard) { // Call query_array directly
+                for (guess_num, guess) in guesses.iter().enumerate() {
+                    if guess_num == 0 {
+                        match guess.parse::<i16>() {
+                            Ok(n) => tmp_id = n,
+                            Err(_) => {
+                                output_string(&format!("Error: Invalid playerid, {}", guess));
+                                return false;
+                            }
+                        }
+                    }
+                    match query_array(guess, myboard, tmp_id) { // Call query_array directly
                         Ok(value) => results.push(value.to_string()),
                         Err(msg) => {
                             results.push("OOB".to_string());
@@ -339,8 +349,8 @@ fn parse_command(mybuf: &str, myboard: &mut Board) -> bool {
             output_string("No command was recognized type --help for a list of commands");
             return false
         }
-        _ => {                  // Handle only commands that are not known commands 
-            match query_array(upper.as_str(), myboard) {
+        _ => {                  // Handle only commands that are not known commands 0 is default player
+            match query_array(upper.as_str(), myboard, 0) {
                 Ok(value) => {
                     output_string(&format!("{}", value));
                     return false;
@@ -355,7 +365,7 @@ fn parse_command(mybuf: &str, myboard: &mut Board) -> bool {
 }
     
         
-fn eval_input(mybuf: String, myboard: &mut Board) -> bool {
+fn eval_input(mybuf: String, myboard: &mut GameData) -> bool {
     if mybuf.contains("--") {
         let tokens = mybuf.split("--").filter(|&x| !x.is_empty());     // Split on token command
         for tok in tokens {
@@ -415,7 +425,7 @@ fn translate_query(mybuf: &str) -> Result<(i16, i16), QueryError> {
 }
 
 // This function only is for the command line
-fn command_line_input(myboard: &mut Board) {
+fn command_line_input(myboard: &mut GameData) {
     let args: Vec<String> = std::env::args().collect();
     let mut args_iter = args.iter().skip(1); // Skip program name
 
@@ -423,7 +433,7 @@ fn command_line_input(myboard: &mut Board) {
         match arg.to_uppercase().as_str() {
             "--LOAD" => {
                 if myboard.loaded {
-                    *myboard = create_board();
+                    *myboard = create_game();
                 }
                 if let Some(filename) = args_iter.next() {
                     if load_file(filename, myboard) {
@@ -447,18 +457,33 @@ fn command_line_input(myboard: &mut Board) {
             }
             "--GUESS" => {
                 let mut guesses = String::new();
+                let mut count = 0;
 
                 // Process guesses until we encounter a new command or run out of arguments
+                let mut tmp_id = -1;        // Initialize to invalid playerid
                 while let Some(next_guess) = args_iter.next() {
                     if next_guess.starts_with("--") {
                         break; // Stop processing guesses
+                    }
+                    if count == 0 {
+                        match next_guess.parse::<i16>() {
+                            Ok(n) => {
+                                tmp_id = n;
+                                count += 1;
+                                continue;
+                            },
+                            Err(_) => {
+                                output_string(&format!("Error: Invalid playerid {}", next_guess.as_str()));
+                                break;
+                            }
+                        };
                     }
                     match translate_query(next_guess) {
                         Ok((col, row)) => {
                             if col >= myboard.cols as i16 || row >= myboard.rows as i16 {
                                 guesses.push_str("OOB,"); // Out of bounds
                             } else {
-                                guesses.push_str(&format!("{},", myboard.mine[row as usize][col as usize]));
+                                guesses.push_str(&format!("{},", myboard.boards[tmp_id as usize].mine[row as usize][col as usize]));
                             }
                         }
                         Err(err) => {
@@ -487,7 +512,7 @@ fn command_line_input(myboard: &mut Board) {
 
 fn main(){
     output_string("Welcome to the Battleship Test Program\nYou can type --help to get a list of commands");
-    let mut myboard = create_board();
+    let mut myboard = create_game();
     if std::env::args().len() <= 1 {
         output_string("No command line arguments entered.");
         myboard.interactive = true;
