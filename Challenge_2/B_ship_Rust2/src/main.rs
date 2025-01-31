@@ -511,7 +511,7 @@ fn command_line_input(myboard: &mut GameData) {
 
 
 fn main(){
-    output_string("Welcome to the Battleship Test Program\nYou can type --help to get a list of commands");
+    output_string("Welcome to the Battleship Test Program v2\nYou can type --help to get a list of commands");
     let mut myboard = create_game();
     if std::env::args().len() <= 1 {
         output_string("No command line arguments entered.");
