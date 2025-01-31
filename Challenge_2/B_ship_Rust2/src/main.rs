@@ -38,13 +38,12 @@ struct Game_Data {
     loaded: bool,
     interactive: bool,
     filename: String,
-    boards: Vec<play_board>
+    boards: Vec<Play_board>
 }
 
 
 fn output_string(buf: &str) {
     print!("{}\n:> ", buf);
-    io::stdout().flush().unwrap();
 }
 
 // This will create a new game board with empty Vec for boards
@@ -96,7 +95,7 @@ fn load_file_game_data(line: &str, myboard: &mut Game_Data, line_num: i16) -> Re
                     }
                 }
                 Err(err) => {
-                    return Err(handle_parse_error(&err.to_string()));
+                    return Err(format!("Error: Failed to load player correctly: {}", err));
                 }
             }
         }
@@ -113,7 +112,7 @@ fn load_file_game_data(line: &str, myboard: &mut Game_Data, line_num: i16) -> Re
                     }
                 }
                 Err(err) => {
-                    return Err(handle_parse_error(&err.to_string()));
+                    return Err(format!("Error: Failed to load player correctly: {}", err));
                 }
             }
         }
@@ -130,7 +129,7 @@ fn load_file_game_data(line: &str, myboard: &mut Game_Data, line_num: i16) -> Re
                     }
                 }
                 Err(err) => {
-                    return Err(handle_parse_error(&err.to_string()));
+                    return Err(format!("Error: Failed to load player correctly: {}", err));
                 }
             }
         }
@@ -141,58 +140,53 @@ fn load_file_game_data(line: &str, myboard: &mut Game_Data, line_num: i16) -> Re
 }
 
 // Pass the player data in as a whole, so iterate through.
-fn load_player_game_data(reader: &mut BufReader, myboard: &mut Game_Data) -> Result<String>{
-    //The iterorator is at the beginning move forward.
-    let mut lines = reader;
+fn load_player_game_data(lines: &mut impl Iterator<Item = io::Result<String>>, myboard: &mut Game_Data) -> Result<String> {
+    //The iterator is at the beginning move forward.
+
     let mut count = 0;
     let mut play_count = 0;
-    lines.next();
-    lines.next();
-    while let Some(line) = lines.next() {
-        match line.trim() {                 
-            Some(data) => {
-                if data.contains(',') {                 // Board data outside of a player struct
-                    return Err(format!("Error: Unexpected data at line {}"), count);
-                }
-                else {                                  // This should be player name
-                    count = 0;                          // Reset count
-                    if data.is_empty() {
-                        return Err(format!("Error: Playername is incorrect {}"), play_count + 1);
+    while let Some(Ok(line)) = lines.next() {
+        let data = line.trim();                 
+        if data.contains(',') {                 // Board data outside of a player struct
+            return Err(format!("Error: Unexpected data at line {}", count));
+        }
+        else {                                  // This should be player name
+            count = 0;                          // Reset count
+            if data.is_empty() {
+                return Err(format!("Error: Playername is incorrect {}", play_count + 1));
+            }
+            else {
+                play_count += 1;
+                let mut newboard = create_player(myboard.rows, myboard.cols);
+                newboard.playername = data.to_string();
+                newboard.playernum = play_count;
+                while let Some(row) = lines.next() {              // Advance the line
+                    count += 1;
+                    if count > myboard.rows {
+                        return Err(format!("Error: Too many rows in player {}", play_count));
                     }
-                    else {
-                        play_count += 1;
-                        let mut newboard = create_player(myboard.rows, myboard.cols);
-                        newboard.playername = data.to_string();
-                        newboard.playernum = play_count;
-                        while let Some(row) = lines.next() {              // Advance the line
-                            count += 1;
-                            if count > myboard.rows {
-                                return Err(format!("Error: Too many rows in player {}"), play_count);
-                            }
-                            let parts: Vec<&str> = row.as_str().split(',').collect();
-                            if parts.len() > myboard.cols {
-                                return Err(format!("Error: Too many columns at row {}, in player {}"), count, play_count);
-                            }
-                            for (j, num) in parts.enumerate() {
-                                match num.trim().parse::<i16>() {
-                                    Ok(val) => {
-                                        if val < newboard.mine.len() && val < newboard.mine[count].len() {
-                                            newboard.mine[count - 1][j] = val;
-                                        }
-                                        else {
-                                            return Err(format!("Error: OOB at column {}, on row {}"), j, count);
-                                        }
-                                    }
-                                    Err(err) => {
-                                        return Err(format!("Error: Failed to parse column at index {}"), err);
-                                    }
+                    let parts: Vec<&str> = row.as_str().split(',').collect();
+                    if parts.len() > myboard.cols {
+                        return Err(format!("Error: Too many columns at row {}, in player {}", count, play_count));
+                    }
+                    for (j, num) in parts.iter().enumerate() {
+                        match num.trim().parse::<i16>() {
+                            Ok(val) => {
+                                if count - 1 < newboard.mine.len() && j < newboard.mine[count - 1].len() {
+                                    newboard.mine[count - 1][j] = val;
+                                }
+                                else {
+                                    return Err(format!("Error: OOB at column {}, on row {}", j, count));
                                 }
                             }
-                            if count == myboard.rows {
-                                myboard.boards.push(newboard);
-                                break;
+                            Err(err) => {
+                                return Err(format!("Error: Failed to parse column at index {}", err));
                             }
                         }
+                    }
+                    if count == myboard.rows {
+                        myboard.boards.push(newboard);
+                        break;
                     }
                 }
             }
@@ -201,7 +195,7 @@ fn load_player_game_data(reader: &mut BufReader, myboard: &mut Game_Data) -> Res
     Ok("".to_string())
 }
 
-fn load_file(filename: &str, myboard: &mut Board) ->bool {
+fn load_file(filename: &str, myboard: &mut Game_Data) ->bool {
     if filename.is_empty() {             // Empty string for filename
         return false                           // Return false
     }
@@ -212,10 +206,10 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
             let mut lines = reader.lines();
             for (line_num, line) in lines.enumerate() {
                 if line_num < 3{
-                    match result = load_file_game_data(line, myboard, line_num) {
-                        Ok(true) => continue,
+                    match load_file_game_data(&line.unwrap(), myboard, line_num) {
+                        Ok(()) => continue,
                         Err(err) => {
-                            output_string(err);
+                            output_string(&err);
                             return false
                         }
                     }
@@ -226,51 +220,19 @@ fn load_file(filename: &str, myboard: &mut Board) ->bool {
                 }
             }
             // Now since we know the size of the boards and the players for loop through each line
-            load_player_game_data(reader.lines(), myboard);
-            myboard.mine = vec![vec![0;myboard.cols as usize]; myboard.rows as usize];       // Initialize myboard.mine
-
-
-            for (i,line) in lines.enumerate().take(myboard.rows as usize) {
-                if i as i16 > myboard.rows {
-                    output_string(&format!("Error: The row is greater than the total number of rows {}", i));
+            match load_player_game_data(&mut lines, myboard) {
+                Ok(_) => {
+                    myboard.loaded = true;
+                    return true;
+                }
+                Err(err) => {
+                    output_string(err);
                     return false;
                 }
-                match line {
-                        Ok(line_str) => {
-                        let parts: Vec<&str> = line_str.split(',').collect();
-                        for (j,part) in parts.iter().enumerate() {
-                            if j as i16 > myboard.cols {
-                                output_string(&format!("Error: Column {} is greater than {}", j, myboard.cols));
-                                return false;
-                            }
-                            match part.trim().parse::<i16>() {
-                                Ok(val) => {
-                                    if i < myboard.mine.len() && j < myboard.mine[i].len() && (val <= i16::MAX && val >= i16::MIN) {
-                                        myboard.mine[i][j] = val;
-                                    }
-                                    else {
-                                        output_string(&format!("OOB at Column {}, on row {}", j, i));
-                                        return false;
-                                    }
-                                }
-                                Err(e) => {
-                                    output_string(&format!("Error: Failed to parse column index: {}", e));
-                                    return false;
-                                }
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        output_string(&format!("Error parsing line {}: {}", i+1, e));
-                        return false;
-                    }
-                }
             }
-            myboard.loaded = true;
-            return true;
+            
         }
     }
-
 }
 
 fn query_array(mybuf: &str, myboard: &mut Board) -> Result<i16, String> {
