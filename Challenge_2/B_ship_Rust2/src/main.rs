@@ -312,7 +312,15 @@ fn parse_command(mybuf: &str, myboard: &mut GameData) -> bool {
                 for (guess_num, guess) in guesses.iter().enumerate() {
                     if guess_num == 0 {
                         match guess.parse::<i16>() {
-                            Ok(n) => tmp_id = n,
+                            Ok(n) => {
+                                if n > myboard.player_count || n < 1 {
+                                    output_string(&format!("Error: Invalid playerid, {}", n));
+                                    return false;
+                                }
+                                else {
+                                    tmp_id = n;
+                                }
+                            }
                             Err(_) => {
                                 output_string(&format!("Error: Invalid playerid, {}", guess));
                                 return false;
@@ -468,9 +476,15 @@ fn command_line_input(myboard: &mut GameData) {
                     if count == 0 {
                         match next_guess.parse::<i16>() {
                             Ok(n) => {
-                                tmp_id = n;
-                                count += 1;
-                                continue;
+                                if n < 1 || n > myboard.player_count {
+                                    output_string(&format!("Error: Playerid is invalid {}", n));
+                                    return false;
+                                }
+                                else {
+                                    tmp_id = n;
+                                    count += 1;
+                                    continue;
+                                }
                             },
                             Err(_) => {
                                 output_string(&format!("Error: Invalid playerid {}", next_guess.as_str()));
@@ -502,6 +516,19 @@ fn command_line_input(myboard: &mut GameData) {
                 }
                 output_string(&guesses);
             }
+            Some("--VERIFY") => {
+                // Function call for Verify with path
+            },
+            Some("--CREATE") => {
+                // Function call for Create with path
+                let mut count = 0;
+                while let Some(next_guess) = args_iter.next() {
+
+                }
+            },
+            Some("--DISPLAY") => {
+                // Function call to display the file with path
+            },
             _ => {
                 output_string(&format!("Unknown command: {}", arg));
             }
