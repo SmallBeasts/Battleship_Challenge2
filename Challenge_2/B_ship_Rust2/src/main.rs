@@ -30,6 +30,25 @@ fn create_player(rows: i16, cols: i16) -> PlayBoard {
     }
 }
 
+// Specific enum to give individual instances as errors.
+enum QueryError {
+    InvalidFormat,
+    InvalidRow,
+    InvalidColumn,
+    OutOfBounds,
+}
+
+// Enum to declare state of create
+enum StateCreate {
+    StateRows,
+    StateCols,
+    StateShips,
+    StatePlayer,
+    StateRandom,
+    StatePlaceShip,
+    StateFileName,
+}
+
 // This will be the main game data storage.  Boards will only be stored inside a Vector
 struct GameData {
     rows: i16,
@@ -38,6 +57,8 @@ struct GameData {
     loaded: bool,
     interactive: bool,
     filename: String,
+    smallestship: i16,
+    largestship: i16,
     boards: Vec<PlayBoard>
 }
 
@@ -55,6 +76,8 @@ fn create_game() -> GameData {
         loaded: false,
         interactive: false,
         filename: "".to_string(),
+        smallestship: 2,
+        largestship: 5,
         boards: Vec::new()
     }
 }
@@ -389,14 +412,6 @@ fn eval_input(mybuf: String, myboard: &mut GameData) -> bool {
     false
 }
 
-// Specific enum to give individual instances as errors.
-enum QueryError {
-    InvalidFormat,
-    InvalidRow,
-    InvalidColumn,
-    OutOfBounds,
-}
-
 // Function to return base 26 for the columns
 fn base_26(buf: String) -> i16 {
     let mut col_index: i16 = 0;
@@ -522,7 +537,77 @@ fn command_line_input(myboard: &mut GameData) {
             Some("--CREATE") => {
                 // Function call for Create with path
                 let mut count = 0;
+                let mut mystate: Vec<StateCreate>;
+                let mut myboard = create_game();            // Create a new board to start population
                 while let Some(next_guess) = args_iter.next() {
+                    if count == 0 {
+                        myboard.filename = next_guess;
+                        count += 1;
+                        mystate.push(StateCreate::StateFileName);
+                    }
+                    match next_guess {
+                        Some("--ROW") => {
+                            let Some(next_guess) = args_iter.next();
+                            match next_guess.parse::<i16>() {
+                                Ok(n) => {
+                                    if n <=0 {
+                                        output_string(&format!("Error: rows are invalid {}", n));
+                                        return false;
+                                    }
+                                    myboard.rows = n;
+                                    mystate.push(StateCreate::StateRows);
+                                }
+                                Err(err) => {
+                                    output_string(&format!("Error: rows are invalid {}", err));
+                                    return false;
+                                }
+                            }
+                        }
+                        Some("--COL") => {
+                            let Some(next_guess) = args_iter.next();
+                            match next_guess.parse::<i16>() {
+                                Ok(n) => {
+                                    if n <= 0 {
+                                        output_string(&format!("Error: columns are invalid, {}", n));
+                                        return false;
+                                    }
+                                    myboard.cols = n;
+                                    mystate.push(StateCreate::StateCols);
+                                }
+                                Err(err) => {
+                                    output_string(&format!("Error: columns are invalid, {}", err));
+                                    return false;
+                                }
+                            }
+                        }
+                        Some("--SHIPS") => {
+                            let Some(next_guess) = args_iter.next();
+                            match next_guess.parse::<i16>() {
+                                Ok(n) => {
+                                    if n <= 0 {
+                                        output_string(&format!("Error: Ship size must be greater than 1, not {}", n));
+                                        return false;
+                                    }
+                                    if mystate.iter().any(|&x| x== StateCreate::StateShips) {       // Ships has been called before
+                                        if myboard.smallestship > n {                               // Check that the old call was less than the new
+                                            myboard.largestship = myboard.smallestship;
+                                            myboard.smallestship = n;
+                                        }
+                                        else {
+                                            myboard.largestship = n;
+                                        }
+                                    }
+                                    else {
+                                        myboard.smallestship = n;
+                                        mystate.push(StateCreate::StateShips);
+                                    }
+                                }
+                            }
+                        }
+                        Some("--PLAYER") => {
+                            // Add player name logic here (first check mystate to see what has been initialized)
+                        }
+                    }
 
                 }
             },
