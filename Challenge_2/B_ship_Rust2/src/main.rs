@@ -13,6 +13,7 @@ use std::process;
 struct PlayBoard {
     playername: String,
     playernum: i16,
+    ships: Vec<i16>,                                // This is used in create and in verify not load
     mine: Vec<Vec<i16>>
 }
 
@@ -26,6 +27,7 @@ fn create_player(rows: i16, cols: i16) -> PlayBoard {
     PlayBoard {
         playername: String::new(),
         playernum: 0,
+        ships: Vec::new(),
         mine: mine
     }
 }
@@ -47,6 +49,7 @@ enum StateCreate {
     StateRandom,
     StatePlaceShip,
     StateFileName,
+    StateCreate,
 }
 
 // This will be the main game data storage.  Boards will only be stored inside a Vector
@@ -447,10 +450,30 @@ fn translate_query(mybuf: &str) -> Result<(i16, i16), QueryError> {
     Ok((col_index, row_index))
 }
 
+enum RowColErr {
+    Failed,
+    TooSmall,
+}
+
+fn create_row_col(RowCol: &str) -> Result<i16, RowColErr> {
+    match RowCol.parse::<i16>() {
+        Ok(n) => {
+            if n <= 0 {
+                return Err(RowColErr::TooSmall);
+            }
+            else {
+                Ok(n)
+            }
+        },
+        Err(_) => Err(RowColErr::Failed),
+    }
+}
+
 // This function only is for the command line
 fn command_line_input(myboard: &mut GameData) {
     let args: Vec<String> = std::env::args().collect();
     let mut args_iter = args.iter().skip(1); // Skip program name
+    let mut mystate: Vec<StateCreate>;      // Keep track of the state of Create commands
 
     while let Some(arg) = args_iter.next() {
         match arg.to_uppercase().as_str() {
@@ -536,80 +559,137 @@ fn command_line_input(myboard: &mut GameData) {
             },
             Some("--CREATE") => {
                 // Function call for Create with path
-                let mut count = 0;
-                let mut mystate: Vec<StateCreate>;
                 let mut myboard = create_game();            // Create a new board to start population
-                while let Some(next_guess) = args_iter.next() {
-                    if count == 0 {
-                        myboard.filename = next_guess;
-                        count += 1;
-                        mystate.push(StateCreate::StateFileName);
-                    }
-                    match next_guess {
-                        Some("--ROW") => {
-                            let Some(next_guess) = args_iter.next();
-                            match next_guess.parse::<i16>() {
-                                Ok(n) => {
-                                    if n <=0 {
-                                        output_string(&format!("Error: rows are invalid {}", n));
-                                        return false;
-                                    }
-                                    myboard.rows = n;
-                                    mystate.push(StateCreate::StateRows);
-                                }
-                                Err(err) => {
-                                    output_string(&format!("Error: rows are invalid {}", err));
-                                    return false;
-                                }
-                            }
-                        }
-                        Some("--COL") => {
-                            let Some(next_guess) = args_iter.next();
-                            match next_guess.parse::<i16>() {
-                                Ok(n) => {
-                                    if n <= 0 {
-                                        output_string(&format!("Error: columns are invalid, {}", n));
-                                        return false;
-                                    }
-                                    myboard.cols = n;
-                                    mystate.push(StateCreate::StateCols);
-                                }
-                                Err(err) => {
-                                    output_string(&format!("Error: columns are invalid, {}", err));
-                                    return false;
-                                }
-                            }
-                        }
-                        Some("--SHIPS") => {
-                            let Some(next_guess) = args_iter.next();
-                            match next_guess.parse::<i16>() {
-                                Ok(n) => {
-                                    if n <= 0 {
-                                        output_string(&format!("Error: Ship size must be greater than 1, not {}", n));
-                                        return false;
-                                    }
-                                    if mystate.iter().any(|&x| x== StateCreate::StateShips) {       // Ships has been called before
-                                        if myboard.smallestship > n {                               // Check that the old call was less than the new
-                                            myboard.largestship = myboard.smallestship;
-                                            myboard.smallestship = n;
-                                        }
-                                        else {
-                                            myboard.largestship = n;
-                                        }
-                                    }
-                                    else {
-                                        myboard.smallestship = n;
-                                        mystate.push(StateCreate::StateShips);
-                                    }
-                                }
-                            }
-                        }
-                        Some("--PLAYER") => {
-                            // Add player name logic here (first check mystate to see what has been initialized)
-                        }
-                    }
-
+                
+                if let Some(next_guess) = args_iter.next() {
+                    myboard.filename = next_guess;
+                    mystate.push(StateCreate::StateFileName);   // Keep track that a filename was added
+                    mystate.push(StateCreate::StateCreate);     // Keep track that we are in create
                 }
+                else {
+                    output_string("Error: Missing path for Create command");
+                    return false;
+                }
+            },
+            Some("--ROW") => {
+                if !mystate.contains(StateCreate::StateCreate) {
+                    output_string("Error: Called Row without a valid create and file path");
+                    return false;
+                }
+                if let Some(next_guess) = args_iter.next() {
+                    match create_row_col(next_guess) {
+                        Ok(row) => {
+                            mystate.push(StateCreate::StateRows);
+                            myboard.rows = row;
+                        }
+                        Err(err) => {
+                            match err {
+                                RowColErr::Failed => output_string("Error: Rows value is not a valid integer"),
+                                RowColErr::TooSmall => output_string("Error: Rows value can not be 0 or negative"),
+                            }
+                            return false;
+                        }
+                    }
+                }
+                else {
+                    output_string("Error: Missing rows value after row in create");
+                    return false;
+                }
+            },
+            Some("--COL") => {
+                if !mystate.contains(StateCreate::StateCreate) {
+                    output_string("Error: Called Col without a valid create and file path");
+                    return false;
+                }
+                if let Some(next_guess) = args_iter.next() {
+                    match create_row_col(next_guess) {
+                        Ok(col) => {
+                            mystate.push(StateCreate::StateCols);
+                            myboard.cols = col;
+                        }
+                        Err(err) => {
+                            match err {
+                                RowColErr::Failed => output_string("Error: Columns value is not a valid integer"),
+                                RowColErr::TooSmall => output_string("Error: Columns value can not be 0 or negative"),
+                            }
+                            return false;
+                        }
+                    }
+                }
+                else {                                          // Empty value after columns
+                    output_string("Error: Missings columns value after col in create");
+                    return false;
+                }
+            },             
+            Some("--SHIPS") => {
+                if !mystate.contains(StateCreate::StateCreate) {
+                    output_string("Error: Called Ships without a valid create and file path");
+                    return false;
+                }
+                if let Some(next_guess) = args_iter.next() {
+                    match create_row_col(next_guess) {
+                        Ok(n) => {
+                            if mystate.iter().any(|&x| x== StateCreate::StateShips) {       // Ships has been called before
+                                if myboard.smallestship > n {                               // Check that the old call was less than the new
+                                    myboard.largestship = myboard.smallestship;
+                                    myboard.smallestship = n;
+                                }
+                                else {
+                                    myboard.largestship = n;
+                                }
+                            }
+                            else {
+                                myboard.smallestship = n;
+                                mystate.push(StateCreate::StateShips);
+                            }
+                        },
+                        Err(err) => {
+                            match err {
+                                RowColErr::Failed => output_string("Error: Unable to convert Ships value to integer"),
+                                RowColErr::TooSmall => output_string("Error: A ship must be at least 1 or greater"),
+                            }
+                            return false;
+                        }
+                    }
+                }
+            },
+            Some("--PLAYER") => {                   // Add a new player name
+                if !mystate.contains(StateCreate::StateCreate) {
+                    output_string("Error: Called Player without a valid create or file path");
+                    return false;
+                }
+                if !mystate.contains(StateCreate::StateRows) {          // Set rows to default value if not previously explicitly set
+                    myboard.rows = 10;
+                }
+                if !mystate.contains(StateCreate::StateCols) {          // Set cols to default if not previously explicitly set
+                    myboard.cols = 10;
+                }
+                if let Some(next_guess) = args_iter.next() {            // A string to name a player
+                    if next.guess.starts_with("--") {
+                        output_string(&format!("Error: Found command {} instead of a player name.", next_guess));
+                        return false;
+                    }
+                    let tmp_player = create_player(myboard.rows, myboard.cols);
+                    tmp_player.playername = next_guess;
+                    tmp_player.playerid = myboard.boards.len() + 1;
+                    if tmp_player.playerid > myboard.player_count {
+                        output_string(&format!("Error: Too many players, declared {} players and created {} players", myboard.player_count, tmp_player.playerid));
+                        return false;
+                    }
+                    mystate.push(StateCreate::StatePlayer);
+                    myboard.boards.push(tmp_player);
+                }
+                else {
+                    output_string("Error: Empty playername found!");
+                    return false;
+                }
+            },
+            Some("--RANDOM") => {
+                if !mystate.contains(StateCreate::StateCreate) || !mystate.contains(StateCreate::StatePlayer) {
+                    output_string("Error: Please declare a file path and a player name before using Random");
+                    return false;
+                }
+                // Function to place ships
             },
             Some("--DISPLAY") => {
                 // Function call to display the file with path
