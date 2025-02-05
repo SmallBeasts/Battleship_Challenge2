@@ -8,6 +8,9 @@ use std::vec;
 use std::fmt;
 use std::process;
 
+mod game;   // Import the board and functions related to structures
+mod utils;
+
 
 // This structure will be the main board per player
 struct PlayBoard {
