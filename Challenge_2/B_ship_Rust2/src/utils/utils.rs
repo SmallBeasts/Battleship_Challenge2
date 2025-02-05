@@ -1,4 +1,11 @@
+use std::fs::File;
+use std::io::{self, BufRead, stdin, BufReader};
+use std::io::Write;
+use std::ptr::null;
+use std::ptr::null_mut;
+use std::vec;
 use std::fmt;
+use std::process;
 
 // Function that allows for consistent output--Pretty
 fn output_string(buf: &str) {
@@ -43,4 +50,30 @@ fn parse_to_int(mystr: &str) -> Result<i16, RowColErr> {
         },
         Err(_) => Err(RowColErr::Failed),
     }
+}
+
+// Function to translate a Column Row notation into a query notation
+fn translate_query(mybuf: &str) -> Result<(i16, i16), QueryError> {
+    let mut row_raw = String::new();
+    let mut col_raw = String::new();
+
+    for c in mybuf.to_uppercase().chars() {
+        if c.is_ascii_uppercase() {
+            col_raw.push(c);
+        } else if c.is_ascii_digit() {
+            row_raw.push(c);
+        } else if c.is_whitespace() {
+            continue;
+        }
+    }
+
+    if row_raw.is_empty() || col_raw.is_empty() {
+        return Err(QueryError::InvalidFormat);
+    }
+
+    let mut col_index = base_26(col_raw);
+
+    let row_index = row_raw.parse::<i16>().map_err(|_| QueryError::InvalidRow)?;
+
+    Ok((col_index, row_index))
 }
