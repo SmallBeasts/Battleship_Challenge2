@@ -17,7 +17,7 @@ fn command_line_input(myboard: &mut GameData) {
         match arg.to_uppercase().as_str() {
             "--LOAD" => handle_load(myboard, &mut args_iter),
             "--HELP" => handle_help(),
-            "--EXIT" || "--QUIT" => {
+            "--EXIT" | "--QUIT" => {
                 output_string("Thank you for playing!");
                 break;
             }

@@ -10,6 +10,27 @@ use std::process;
 use create::utils;
 use crate::game;
 
+
+// Function to handle loading files
+fn handle_load(
+    myboard: &mut GameData,
+    args_iter: &mut std::iter::Skip<std::slice::Iter<String>>) 
+{
+    // If there is already a board loaded reinitialize
+    if myboard.loaded {
+        *myboard = create_game();
+    }
+    if let Some(filename) = args_iter.next() {
+        if load_file(filename, myboard) {
+            output_string("File loaded successfully.");
+        } else {
+            output_string("File was not found, please enter the full path.");
+        }
+    } else {
+        output_string("Usage: --load <filename>");
+    }
+}
+
 fn handle_row_col_error(err: RowColErr, is_row: bool) {
     let err_msg = match err {
         RowColErr::Failed => {
