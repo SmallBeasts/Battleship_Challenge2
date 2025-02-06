@@ -23,7 +23,7 @@ fn command_line_input(myboard: &mut GameData) {
             }
             "--GUESS" => handle_guess(myboard, &mut args_iter),
             "--VERIFY" => handle_verify(myboard, &mut args_iter),
-            "--CREATE" => handle_create(myboard, &mut args_iter),
+            "--CREATE" => handle_create(myboard, &mut args_iter, &mut mystate),
             "--ROW" => {
                 if let Err(err) = handle_row_col(myboard, &mut args_iter, true) {
                     handle_row_col_error(err, true);
@@ -36,7 +36,7 @@ fn command_line_input(myboard: &mut GameData) {
                     return false;
                 }
             },
-            "--SHIPS" => handle_ships(myboard, &mut args_iter),
+            "--SHIPS" => handle_ships_size(myboard, &mut args_iter),
             "--PLAYER" => handle_player(myboard, &mut args_iter),
             "--RANDOM" => handle_random(myboard, &mut args_iter),
             "--DISPLAY" => handle_display(myboard, &mut args_iter),

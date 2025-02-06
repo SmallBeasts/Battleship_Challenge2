@@ -41,7 +41,7 @@ fn create_game() -> GameData {
     GameData {
         rows: 0,
         cols: 0,
-        player_count: 0,
+        player_count: 1,
         loaded: false,
         interactive: false,
         filename: "".to_string(),
