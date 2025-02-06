@@ -7,6 +7,43 @@ use std::vec;
 use std::fmt;
 use std::process;
 
+// Refactored command line function
+fn command_line_input(myboard: &mut GameData) {
+    let args: Vec<String> std::env::args().collect();
+    let mut args_iter = args.iter().skip(1);        // Skip program name
+    let mut mystate: Vec<StateCreate>;              // Keep track of the state of Create commands
+
+    while let Some(arg) = args_iter.next() {
+        match arg.to_uppercase().as_str() {
+            "--LOAD" => handle_load(myboard, &mut args_iter),
+            "--HELP" => handle_help(),
+            "--EXIT" || "--QUIT" => {
+                output_string("Thank you for playing!");
+                break;
+            }
+            "--GUESS" => handle_guess(myboard, &mut args_iter),
+            "--VERIFY" => handle_verify(myboard, &mut args_iter),
+            "--CREATE" => handle_create(myboard, &mut args_iter),
+            "--ROW" => {
+                if let Err(err) = handle_row_col(myboard, &mut args_iter, true) {
+                    handle_row_col_error(err, true);
+                    return false;
+                }
+            },
+            "--COL" => {
+                if let Err(err) = handle_row_col(myboard, &mut args_iter, false) {
+                    handle_row_col_error(err, false);
+                    return false;
+                }
+            },
+            "--SHIPS" => handle_ships(myboard, &mut args_iter),
+            "--PLAYER" => handle_player(myboard, &mut args_iter),
+            "--RANDOM" => handle_random(myboard, &mut args_iter),
+            "--DISPLAY" => handle_display(myboard, &mut args_iter),
+        }
+    }
+}
+
 // This function only is for the command line
 fn command_line_input(myboard: &mut GameData) {
     let args: Vec<String> = std::env::args().collect();
