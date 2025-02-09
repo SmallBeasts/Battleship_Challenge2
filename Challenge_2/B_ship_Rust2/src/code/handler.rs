@@ -9,7 +9,7 @@ fn handle_load(
     args_iter: &mut std::iter::Skip<std::slice::Iter<String>>) 
 {
     // If there is already a board loaded reinitialize
-    if myboard.get() {
+    if myboard.get_loaded() {
         *myboard = create_game();
     }
     if let Some(filename) = args_iter.next() {
@@ -96,7 +96,7 @@ fn handle_ships_size(
         return false;
     }
     if let Some(next_guess) = args_iter.next() {
-        match parse_to_int(next_guess) {
+        match code::utils::parse_to_int(next_guess) {
             Ok(n) => {
                 if mystate.contains(&StateCreate::StateShips) {       // Ships has been called before
                     let (small, large) = myboard.get_shipsizes();
@@ -143,12 +143,12 @@ fn handle_player(
             return false;
         }
         let (row, col) = myboard.get_row_col();
-        let tmp_player = game::board::create_player(row, col);
+        let tmp_player = code::board::create_player(row, col);
         tmp_player.set_playername(next_guess);
         tmp_player.set_playernum(myboard.get_boards_len() + 1);
-        myboard.increment_playercount();                          // Update the total number of players
         mystate.push(StateCreate::StatePlayer);
-        myboard.boards.push(tmp_player);
+        myboard.increment_playercount();
+        myboard.boards_add(tmp_player);  // Add the player and update player count
     }
     else {
         output_string("Error: Empty playername found!");

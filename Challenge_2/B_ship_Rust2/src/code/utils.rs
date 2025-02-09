@@ -1,11 +1,14 @@
 use crate::code::enums::QueryError;
 use crate::code::enums::RowColErr;
 use std::io;
+use std::fmt::Display;
 
 // Function that allows for consistent output--Pretty
-pub fn output_string(buf: &str) {
-    print!("{}\n:> ", buf);
+pub fn output_string<T: Display + ?Sized>(buf: &T) {
+    let x = format!(":> {}\n:> ", buf);
+    print!("{}}", x);
 }
+
 
 // Handling repetitive file errors
 pub fn handle_file_error(err: io::Error) -> bool {

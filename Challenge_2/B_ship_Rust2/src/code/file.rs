@@ -3,7 +3,7 @@ use std::io::{self, BufRead, BufReader};
 use crate::code::board::GameData;
 
 fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: i16) -> Result<(), String> {
-    let mut tmp_line = line;
+    let tmp_line = line;
     if line.is_empty() {
         return Err(format!("Error: Empty line at {}", line_num));
     }
@@ -111,7 +111,7 @@ fn load_player_game_data(lines: &mut impl Iterator<Item = io::Result<String>>, m
                         }
                     }
                     if count == myrow {
-                        myboard.boards.push(newboard);
+                        myboard.boards_add(newboard);
                         break;
                     }
                 }
@@ -148,7 +148,7 @@ fn load_file(filename: &str, myboard: &mut GameData) ->bool {
             // Now since we know the size of the boards and the players for loop through each line
             match load_player_game_data(&mut lines, myboard) {
                 Ok(_) => {
-                    myboard.loaded = true;
+                    myboard.set_loaded(true);
                     return true;
                 }
                 Err(err) => {

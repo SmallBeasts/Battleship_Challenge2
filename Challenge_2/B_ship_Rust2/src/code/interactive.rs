@@ -11,7 +11,7 @@ fn parse_command(mybuf: &str, myboard: &mut GameData) -> bool {
         Some("LOAD") => {
             if myboard.get_loaded() {
                 output_string("A previous board was loaded, now loading new file.");
-                *myboard = create_game();
+                *myboard = board::create_game();
             }
             if let Some(filename) = tokens.next() {
                 output_string(&format!("Loading the file <{}>", filename));
@@ -85,7 +85,7 @@ fn parse_command(mybuf: &str, myboard: &mut GameData) -> bool {
             return false
         }
         _ => {                  // Handle only commands that are not known commands 0 is default player
-            match query_array(upper.as_str(), myboard, 0) {
+            match code::datacheck::query_array(upper.as_str(), myboard, 0) {
                 Ok(value) => {
                     output_string(&format!("{}", value));
                     return false;

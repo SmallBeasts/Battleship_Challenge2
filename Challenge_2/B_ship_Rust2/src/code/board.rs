@@ -41,8 +41,14 @@ impl PlayBoard {
         self.playernum = num;
     }
 
-    // TODO set ships to Vec
-    // TODO get and set functions for board
+    pub fn set_board_loc(&mut self, row: usize, col: usize, val: i16) {
+        self.mine[row][col] = val;
+    }
+
+    pub fn get_board_loc(&self, row: usize, col: usize) -> Option<i16>{
+        Some(self.mine[row][col])
+    }
+
 }
 
 
@@ -140,7 +146,21 @@ impl GameData {
         self.boards.len()
     }
 
-    //TODO fix the boards
+    pub fn boards_add(&mut self, board: PlayBoard) {
+        self.boards.push(board);
+    }
+
+    pub fn boards_get_last(&self) -> Option<PlayBoard> {
+        Some(self.boards.last().cloned())
+    }
+
+    pub fn boards_pop_last(&mut self) -> Option<PlayBoard> {
+        Some(self.boards.pop())
+    }
+
+    pub fn boards_get_player(&self, playernum: usize) -> Option<PlayBoard> {
+        Some(self.boards.get(playernum).cloned());
+    }
 }
 
 // This will create a new game board with empty Vec for boards
