@@ -4,7 +4,7 @@ use crate::code::utils::output_string;
 use crate::code::enums::RowColErr;
 
 // Function to handle loading files
-fn handle_load(
+pub fn handle_load(
     myboard: &mut GameData,
     args_iter: &mut std::iter::Skip<std::slice::Iter<String>>) 
 {
@@ -23,7 +23,7 @@ fn handle_load(
     }
 }
 
-fn handle_row_col_error(err: RowColErr, is_row: bool) {
+pub fn handle_row_col_error(err: RowColErr, is_row: bool) {
     let err_msg = match err {
         RowColErr::Failed => {
             if is_row {
@@ -39,18 +39,25 @@ fn handle_row_col_error(err: RowColErr, is_row: bool) {
                 "Error: Column value must be greater than or equal to 1"
             }
         }
+        RowColErr::TooBig => {
+            if is_row {
+                &format!("Error: Row value must be less than {}", MAX_SIZE)
+            } else {
+                &format!("Error: Column value must be less than {}", MAX_SIZE)
+            }
+        }
     };
     output_string(err_msg);
 }
 
 // Handle conversion and storage of row and column data in Create specifically but later probably in load.
-fn handle_row_col(
+pub fn handle_row_col(
     myboard: &mut GameData, 
     args_iter: &mut std::iter::Skip<std::slice::Iter<String>>, 
     row_col: bool
 ) -> Result<(), RowColErr> {
     if let Some(next_value) = args_iter.next() {
-        match parse_to_int(next_value) {
+        match parse_to_usize(next_value) {
             Ok(value) => {
                 if row_col {
                     myboard.set_row_or_col(value, true);
@@ -67,7 +74,7 @@ fn handle_row_col(
 }
 
 // Handle function to start the file creation
-fn handle_create(myboard: &mut GameData, args_iter: &mut std::iter::Skip<std::slice::Iter<String>>,
+pub fn handle_create(myboard: &mut GameData, args_iter: &mut std::iter::Skip<std::slice::Iter<String>>,
                 mystate: &mut Vec<StateCreate>) -> bool {
      // Function call for Create with path
      let mut myboard = create_game();            // Create a new board to start population
@@ -85,7 +92,7 @@ fn handle_create(myboard: &mut GameData, args_iter: &mut std::iter::Skip<std::sl
 }
 
 // Handle function to set ship min/max size
-fn handle_ships_size(
+pub fn handle_ships_size(
     myboard: &mut GameData,
     args_iter: &mut std::iter::Skip<std::slice::Iter<String>>,
     mystate: &mut Vec<StateCreate>
@@ -96,7 +103,7 @@ fn handle_ships_size(
         return false;
     }
     if let Some(next_guess) = args_iter.next() {
-        match code::utils::parse_to_int(next_guess) {
+        match code::utils::parse_to_usize(next_guess) {
             Ok(n) => {
                 if mystate.contains(&StateCreate::StateShips) {       // Ships has been called before
                     let (small, large) = myboard.get_shipsizes();
@@ -127,7 +134,7 @@ fn handle_ships_size(
 // This is the first function call that requires everything else to be set
 // Sets default rows/cols if not previously set
 
-fn handle_player(
+pub fn handle_player(
     myboard: &mut GameData,
     args_iter: &mut std::iter::Skip<std::slice::Iter<String>>,
     mystate: &mut Vec<StateCreate>) -> bool {
@@ -155,5 +162,12 @@ fn handle_player(
         return false;
     }
     true
+}
+
+pub fn handle_help() {
+    output_string(
+        "Available commands: \
+         --load <filename>\n--guess <list in A1 or AA10 format>\n--help (this output)\n--exit or --quit to quit.",
+    );
 }
 

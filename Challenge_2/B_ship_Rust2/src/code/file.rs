@@ -1,6 +1,9 @@
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use crate::code::board::GameData;
+use crate::code::utils::output_string;
+use crate::code::utils::parse_to_usize;
+
 
 fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: i16) -> Result<(), String> {
     let tmp_line = line;
@@ -10,15 +13,10 @@ fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: i16) -> Res
     // Rows handling
     match line_num {
         0 => {
-            match tmp_line.trim().parse::<i16>() {
+            match parse_to_usize(tmp_line.trim()) {
                 Ok(num) => {
-                    if num > 0 {
-                        myboard.set_row_or_col(num, true);
-                        return Ok(());
-                    }
-                    else {
-                        return Err(format!("Error: Invalid row_size value {}", num));
-                    }
+                    myboard.set_row_or_col(num, true);
+                    return Ok(());
                 }
                 Err(err) => {
                     return Err(format!("Error: Failed to load player correctly: {}", err));
@@ -27,15 +25,10 @@ fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: i16) -> Res
         }
         // Columns parsing
         1 => {
-            match tmp_line.trim().parse::<i16>() {
+            match parse_to_usize(tmp_line.trim()) {
                 Ok(num) => {
-                    if num > 0 {
-                        myboard.set_row_or_col(num, false);
-                        return Ok(());
-                    }
-                    else {
-                        return Err(format!("Error: Invalid col_size value {}", num));
-                    }
+                    myboard.set_row_or_col(num, false);
+                    return Ok(());
                 }
                 Err(err) => {
                     return Err(format!("Error: Failed to load player correctly: {}", err));
@@ -44,15 +37,10 @@ fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: i16) -> Res
         }
         // Handle player count
         2 => {
-            match tmp_line.trim().parse::<i16>() {
+            match parse_to_usize(tmp_line.trim()) {
                 Ok(num) => {
-                    if num < i16::MAX && num > 0 {
-                        myboard.set_playercount(num);
-                        return Ok(());
-                    }
-                    else {
-                        return Err(format!("Error: Invalid player_count value {}", num));
-                    }
+                    myboard.set_playercount(num);
+                    return Ok(());
                 }
                 Err(err) => {
                     return Err(format!("Error: Failed to load player correctly: {}", err));
@@ -83,7 +71,7 @@ fn load_player_game_data(lines: &mut impl Iterator<Item = io::Result<String>>, m
             else {
                 play_count += 1;
                 let (myrow, mycol) = myboard.get_row_col();
-                let mut newboard = create_player(myrow, mycol);
+                let mut newboard = board::create_player(myrow, mycol);
                 newboard.set_playername(data.to_string());
                 newboard.set_playernum(play_count);
                 while let Some(Ok(row)) = lines.next() {              // Advance the line
@@ -126,7 +114,7 @@ fn load_file(filename: &str, myboard: &mut GameData) ->bool {
         return false                           // Return false
     }
     match File::open(filename) {
-        Err(err) => handle_file_error(err), 
+        Err(err) => utils::handle_file_error(err), 
         Ok(file) => {                   // File is now open, time to read
             let reader = BufReader::new(file);
             let mut lines = reader.lines();

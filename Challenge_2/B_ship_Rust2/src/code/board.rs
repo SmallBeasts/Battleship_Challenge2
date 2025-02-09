@@ -4,12 +4,12 @@ use crate::code::enums::Direction;
 // This structure will be the main board per player
 pub struct PlayBoard {
     playername: String,
-    playernum: i16,
+    playernum: usize,
     ships: Vec<BoundingBox>,                    // This is used in create to store only ships
-    mine: Vec<Vec<i16>>
+    mine: Vec<Vec<usize>>
 }
 
-pub fn create_player(rows: i16, cols: i16) -> PlayBoard {
+pub fn create_player(rows: usize, cols: usize) -> PlayBoard {
     let mut mine = Vec::with_capacity(rows as usize);
 
     for _ in 0..rows {
@@ -33,20 +33,20 @@ impl PlayBoard {
         self.playername = name;
     }
 
-    pub fn get_playernum(&self) -> i16 {
+    pub fn get_playernum(&self) -> usize {
         self.playernum
     }
 
-    pub fn set_playernum(&mut self, num: i16) {
+    pub fn set_playernum(&mut self, num: usize) {
         self.playernum = num;
     }
 
-    pub fn set_board_loc(&mut self, row: usize, col: usize, val: i16) {
+    pub fn set_board_loc(&mut self, row: usize, col: usize, val: usize) {
         self.mine[row][col] = val;
     }
 
-    pub fn get_board_loc(&self, row: usize, col: usize) -> Option<i16>{
-        Some(self.mine[row][col])
+    pub fn get_board_loc(&self, row: usize, col: usize) -> usize{
+        self.mine[row][col]
     }
 
 }
@@ -54,14 +54,14 @@ impl PlayBoard {
 
 // This will be the main game data storage.  Boards will only be stored inside a Vector
 pub struct GameData {
-    rows: i16,
-    cols: i16,
-    player_count: i16,
+    rows: usize,
+    cols: usize,
+    player_count: usize,
     loaded: bool,
     interactive: bool,
     filename: String,
-    smallestship: i16,
-    largestship: i16,
+    smallestship: usize,
+    largestship: usize,
     boards: Vec<PlayBoard>
 }
 
@@ -90,11 +90,11 @@ impl GameData {
         self.filename = name;
     }
 
-    pub fn get_shipsizes(&self) -> (i16, i16) {
+    pub fn get_shipsizes(&self) -> (usize, usize) {
         (self.smallestship, self.largestship)
     }
 
-    pub fn set_shipsizes(&mut self, small: i16, large: Option<i16>) -> Result<(), &str> {
+    pub fn set_shipsizes(&mut self, small: usize, large: Option<usize>) -> Result<(), &str> {
         let large_val = large.unwrap_or(small + 5);
         if small <= 1 || large_val <= 1 {
             return Err("Error: Ship sizes have to be positive and larger than 1");
@@ -104,17 +104,17 @@ impl GameData {
         Ok(())
     }
 
-    pub fn get_row_col(&self) -> (i16,i16) {
+    pub fn get_row_col(&self) -> (usize,usize) {
         (self.rows, self.cols)
     }
     // Set both rows and columns together if possible
-    pub fn set_row_col(&mut self, row: i16, col: i16) {
+    pub fn set_row_col(&mut self, row: usize, col: usize) {
         self.rows = row;
         self.cols = col;
     }
     
     // True means set row, false is cols
-    pub fn set_row_or_col(&mut self, num: i16, row_col: bool) {
+    pub fn set_row_or_col(&mut self, num: usize, row_col: bool) {
         if row_col {
             self.rows = num;
         } else {
@@ -122,11 +122,11 @@ impl GameData {
         }
     }
 
-    pub fn get_playercount(&self) -> i16 {
+    pub fn get_playercount(&self) -> usize {
         self.player_count
     }
 
-    pub fn set_playercount(&mut self, num: i16) {
+    pub fn set_playercount(&mut self, num: usize) {
         self.player_count = num;
     }
 
@@ -150,16 +150,20 @@ impl GameData {
         self.boards.push(board);
     }
 
-    pub fn boards_get_last(&self) -> Option<PlayBoard> {
+    pub fn boards_get_last(&self) -> PlayBoard {
         Some(self.boards.last().cloned())
     }
 
-    pub fn boards_pop_last(&mut self) -> Option<PlayBoard> {
-        Some(self.boards.pop())
+    pub fn boards_pop_last(&mut self) -> PlayBoard {
+        self.boards.pop()
     }
 
     pub fn boards_get_player(&self, playernum: usize) -> Option<PlayBoard> {
-        Some(self.boards.get(playernum).cloned());
+        if self.boards.len() < playernum {
+            None
+        }
+        else {}
+            Some(self.boards.get(playernum).cloned())
     }
 }
 
@@ -181,9 +185,9 @@ pub fn create_game() -> GameData {
 // Definition of ships and their locations
 impl BoundingBox {
     pub struct BoundingBox {
-        pub ship_id: i16,
-        pub start: (i16, i16),
-        pub end: (i16, i16),
+        pub ship_id: usize,
+        pub start: (usize, usize),
+        pub end: (usize, usize),
     }
 
     pub fn new(

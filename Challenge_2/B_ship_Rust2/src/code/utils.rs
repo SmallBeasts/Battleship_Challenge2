@@ -6,7 +6,7 @@ use std::fmt::Display;
 // Function that allows for consistent output--Pretty
 pub fn output_string<T: Display + ?Sized>(buf: &T) {
     let x = format!(":> {}\n:> ", buf);
-    print!("{}}", x);
+    print!("{}", x);
 }
 
 
@@ -36,11 +36,14 @@ pub fn base_26(buf: String) -> i16 {
     col_index
 }
 
-pub fn parse_to_int(mystr: &str) -> Result<i16, RowColErr> {
-    match mystr.parse::<i16>() {
+pub fn parse_to_usize(mystr: &str) -> Result<usize, RowColErr> {
+    match mystr.parse::<usize>() {
         Ok(n) => {
             if n <= 0 {
                 return Err(RowColErr::TooSmall);
+            }
+            if n > MAX_SIZE {
+                return Err(RowColErr::TooBig);
             }
             else {
                 Ok(n)

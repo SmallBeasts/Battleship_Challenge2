@@ -34,11 +34,11 @@ fn parse_command(mybuf: &str, myboard: &mut GameData) -> bool {
             let mut oob_messages = Vec::new();
 
             for tok in tokens {
-                let mut tmp_id: i16 = -1;
+                let mut tmp_id: usize = 0;
                 let guesses: Vec<&str> = tok.split(',').collect();
                 for (guess_num, guess) in guesses.iter().enumerate() {
                     if guess_num == 0 {
-                        match guess.parse::<i16>() {
+                        match guess.parse::<usize>() {
                             Ok(n) => {
                                 if n > myboard.get_playercount() || n < 1 {
                                     output_string(&format!("Error: Invalid playerid, {}", n));
