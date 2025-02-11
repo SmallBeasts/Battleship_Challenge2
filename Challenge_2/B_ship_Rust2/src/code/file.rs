@@ -54,6 +54,7 @@ fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: i16) -> Res
 }
 
 // Pass the player data in as a whole, so iterate through.
+// TODO rewrite so that it is not saving a board but rather adding ships, the board is all 0 except ship locations
 fn load_player_game_data(lines: &mut impl Iterator<Item = io::Result<String>>, myboard: &mut GameData) -> Result<(), String> {
 
     let mut count = 0;
@@ -71,9 +72,9 @@ fn load_player_game_data(lines: &mut impl Iterator<Item = io::Result<String>>, m
             else {
                 play_count += 1;
                 let (myrow, mycol) = myboard.get_row_col();
-                let mut newboard = board::create_player(myrow, mycol);
-                newboard.set_playername(data.to_string());
-                newboard.set_playernum(play_count);
+                let mut new_player = board::create_player(myrow, mycol);
+                new_player.set_playername(data.to_string());
+                new_player.set_playernum(play_count);
                 while let Some(Ok(row)) = lines.next() {              // Advance the line
                     count += 1;
                     if count > myrow {
@@ -84,10 +85,10 @@ fn load_player_game_data(lines: &mut impl Iterator<Item = io::Result<String>>, m
                         return Err(format!("Error: Too many columns at row {}, in player {}", count, play_count));
                     }
                     for (j, num) in parts.iter().enumerate() {
-                        match num.trim().parse::<i16>() {
+                        match parse_to_usize(num.trim()) {
                             Ok(val) => {
-                                if count - 1 < newboard.mine.len() as i16 && j < newboard.mine[(count - 1) as usize].len() {
-                                    newboard.mine[(count - 1) as usize][j] = val;
+                                if count - 1 < new_player.mine.len() as i16 && j < new_player.mine[(count - 1) as usize].len() {
+                                    new_player.mine[(count - 1) as usize][j] = val;
                                 }
                                 else {
                                     return Err(format!("Error: OOB at column {}, on row {}", j, count));
@@ -99,7 +100,7 @@ fn load_player_game_data(lines: &mut impl Iterator<Item = io::Result<String>>, m
                         }
                     }
                     if count == myrow {
-                        myboard.boards_add(newboard);
+                        myboard.boards_add(new_player);
                         break;
                     }
                 }
