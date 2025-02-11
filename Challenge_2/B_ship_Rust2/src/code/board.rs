@@ -165,6 +165,13 @@ impl GameData {
         else {}
             Some(self.boards.get(playernum).cloned())
     }
+
+    pub fn in_bounds(&self, row: usize, col: usize) -> bool{
+        if row < self.rows && col < self.cols {
+            true
+        }
+        false
+    }
 }
 
 // This will create a new game board with empty Vec for boards
@@ -182,43 +189,52 @@ pub fn create_game() -> GameData {
     }
 }
 
+pub struct ShipBoundingBox {
+    pub ship_id: usize,
+    pub start: (usize, usize),
+    pub end: (usize, usize),
+}
 // Definition of ships and their locations
-impl BoundingBox {
-    pub struct BoundingBox {
-        pub ship_id: usize,
-        pub start: (usize, usize),
-        pub end: (usize, usize),
-    }
+impl ShipBoundingBox {
 
     pub fn new(
-        ship_id: i16,
-        start: (i16, i16),
-        length: i16,
+        ship_id: usize,
+        start: (usize, usize),
         direction: Direction,
-        board_width: i16,
-        board_height: i16,
-    ) -> Result<Self, String> {
-        let end = match direction {
-            Direction::Horizontal => (start.0 + length - 1, start.1),
-            Direction::Vertical => (start.0, start.1 + length - 1),
-        };
-
-        // Validate that both start and end points are within bounds
-        if start.0 < 0 || start.0 >= board_width || start.1 < 0 || start.1 >= board_height {
-            return Err(format!("Error: Start position {:?} is out of bounds", start));
+        board: &GameData,
+    ) -> Option(ShipBoundingBox) {
+        let tmp_end: (usize, usize) = (0,0);
+        if direction == Directio::Vertical                  // Vertical ship
+        {
+            tmp_end = (start.0 + ship_id, start.1);
+        } else {                                            // Horizontal ship
+            tmp_end = (start.0, start.1 + ship_id);
         }
-        if end.0 < 0 || end.0 >= board_width || end.1 < 0 || end.1 >= board_height {
-            return Err(format!("Error: End position {:?} is out of bounds", end));
+        if !board.in_bounds(start.0, start.1) && !board.in_bounds(tmp_end.0, tmp_end.1) {         // Valid for placement
+            return None();
         }
-
-        Ok(Self { ship_id, start, end })
+        if start.0 != tmp_end.0 && start.1 != tmp_end.1 {               // Check for diagonal
+            return None();
+        }
+        Some(ShipBoundingBox {
+            ship_id: ship_id,
+            start: (start.0, start.1),
+            end: (tmp_end.0, tmp_end.1),
+            })
     }
-    
-    
-    pub fn collision(&self, other: &BoundingBox) -> bool {
-        let x_overlap = self.start.0 <= other.end.0 && self.end.0 >= other.start.0;
-        let y_overlap = self.start.1 <= other.end.1 && self.end.1 >= other.start.1;
 
-        x_overlap && y_overlap
+    // Check for a collision between ships
+    pub fn collision(&self, other: &ShipBoundingBox) -> bool{
+        (self.start.0 <= other.start.0 && self.end.0 >= other.start.0) &&
+        (self.start.1 <= other.end.1 && self.end.1 >= other.start.1)
     }
+
+    pub fn point_in_ship(&self, row: usize, col: usize) -> bool {
+        if self.start.0 == self.end.0 { // Vertical ship
+            (col == self.start.0) && (row >= self.start.1) && (row <= self.end.1) //Check col and row
+        } else { // Horizontal ship
+            (row == self.start.1) && (col >= self.start.0) && (col <= self.end.0) //Check row and col
+        }
+    }
+
 }
