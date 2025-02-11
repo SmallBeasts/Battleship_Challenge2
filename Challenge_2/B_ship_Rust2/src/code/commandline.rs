@@ -32,8 +32,8 @@ pub fn command_line_input(myboard: &mut GameData) {
                     return false;
                 }
             },
-            "--SHIPS" => handler::handle_ships_size(myboard, &mut args_iter),
-            "--PLAYER" => handler::handle_player(myboard, &mut args_iter),
+            "--SHIPS" => handler::handle_ships_size(myboard, &mut args_iter, &mut mystate),
+            "--PLAYER" => handler::handle_player(myboard, &mut args_iter, &mut mystate),
             "--RANDOM" => handler::handle_random(myboard, &mut args_iter),
             "--DISPLAY" => handler::handle_display(myboard, &mut args_iter),
         }

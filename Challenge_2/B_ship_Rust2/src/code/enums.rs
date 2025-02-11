@@ -30,7 +30,7 @@ pub enum StateCreate {
     StateFileName,
     StateCreate,
 }
-
+#[derive(PartialEq)]
 pub enum Direction {
     Horizontal,
     Vertical,

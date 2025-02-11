@@ -3,9 +3,25 @@ use std::io::{self, BufRead, BufReader};
 use crate::code::board::GameData;
 use crate::code::utils::output_string;
 use crate::code::utils::parse_to_usize;
+use std::collections::{HashSet, HashMap};
+use std::error::Error;
+use crate::code::board::ShipBoundingBox;
+use std::fmt;
 
+#[derive(Debug)]
+struct LoadError {
+    message: String,
+}
 
-fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: i16) -> Result<(), String> {
+impl fmt::Display for LoadError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl Error for LoadError {} // Implement the Error trait
+
+fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: usize) -> Result<(), String> {
     let tmp_line = line;
     if line.is_empty() {
         return Err(format!("Error: Empty line at {}", line_num));
@@ -19,7 +35,17 @@ fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: i16) -> Res
                     return Ok(());
                 }
                 Err(err) => {
-                    return Err(format!("Error: Failed to load player correctly: {}", err));
+                    match err {
+                        RowColErr::TooSmall => {
+                            let fail_str = "Error: Failed to load player correctly, too small.".to_string();
+                        }
+                        RowColErr::TooBig => {
+                            let fail_str = "Error: Failed to load player correctly, too big.".to_string();
+                        }
+                        RowColErr::Failed => { let fail_str = "Error: Failed to load player correctly, failed.".to_string();
+                        }   
+                    }
+                    return Err(fail_str);
                 }
             }
         }
@@ -31,7 +57,17 @@ fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: i16) -> Res
                     return Ok(());
                 }
                 Err(err) => {
-                    return Err(format!("Error: Failed to load player correctly: {}", err));
+                    match err {
+                        RowColErr::TooSmall => {
+                            let fail_str = "Error: Failed to load player correctly, too small.".to_string();
+                        }
+                        RowColErr::TooBig => {
+                            let fail_str = "Error: Failed to load player correctly, too big.".to_string();
+                        }
+                        RowColErr::Failed => { let fail_str = "Error: Failed to load player correctly, failed.".to_string();
+                        }   
+                    }
+                    return Err(fail_str);
                 }
             }
         }
@@ -43,7 +79,17 @@ fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: i16) -> Res
                     return Ok(());
                 }
                 Err(err) => {
-                    return Err(format!("Error: Failed to load player correctly: {}", err));
+                    match err {
+                        RowColErr::TooSmall => {
+                            let fail_str = "Error: Failed to load player correctly, too small.".to_string();
+                        }
+                        RowColErr::TooBig => {
+                            let fail_str = "Error: Failed to load player correctly, too big.".to_string();
+                        }
+                        RowColErr::Failed => { let fail_str = "Error: Failed to load player correctly, failed.".to_string();
+                        }   
+                    }
+                    return Err(fail_str);
                 }
             }
         }
@@ -54,98 +100,94 @@ fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: i16) -> Res
 }
 
 // Pass the player data in as a whole, so iterate through.
-// TODO rewrite so that it is not saving a board but rather adding ships, the board is all 0 except ship locations
-fn load_player_game_data(lines: &mut impl Iterator<Item = io::Result<String>>, myboard: &mut GameData) -> Result<(), String> {
+pub fn load_player_game_data<R: BufRead>(
+    lines: &mut std::io::Lines<R>,
+    myboard: &mut GameData,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let (play_row, play_col) = myboard.get_row_col();
+    let mut player_num = 0;
 
-    let mut count = 0;
-    let mut play_count = 0;
-    while let Some(Ok(line)) = lines.next() {
-        let data = line.trim();                 
-        if data.contains(',') {                 // Board data outside of a player struct
-            return Err(format!("Error: Unexpected data at line {}", count));
+    while let Some(Ok(player_name_line)) = lines.next() { // Outer loop for each player
+        let player_name = player_name_line.trim();
+
+        if player_name.contains(',') || player_name.is_empty() {
+            return Err(Box::new(LoadError {
+                message: "Error: Inappropriate or blank player name.".to_string(),
+            }));
         }
-        else {                                  // This should be player name
-            count = 0;                          // Reset count
-            if data.is_empty() {
-                return Err(format!("Error: Playername is incorrect {}", play_count + 1));
-            }
-            else {
-                play_count += 1;
-                let (myrow, mycol) = myboard.get_row_col();
-                let mut new_player = board::create_player(myrow, mycol);
-                new_player.set_playername(data.to_string());
-                new_player.set_playernum(play_count);
-                while let Some(Ok(row)) = lines.next() {              // Advance the line
-                    count += 1;
-                    if count > myrow {
-                        return Err(format!("Error: Too many rows in player {}", play_count));
-                    }
-                    let parts: Vec<&str> = row.as_str().split(',').collect();
-                    if parts.len() > mycol as usize {
-                        return Err(format!("Error: Too many columns at row {}, in player {}", count, play_count));
-                    }
-                    for (j, num) in parts.iter().enumerate() {
-                        match parse_to_usize(num.trim()) {
-                            Ok(val) => {
-                                if count - 1 < new_player.mine.len() as i16 && j < new_player.mine[(count - 1) as usize].len() {
-                                    new_player.mine[(count - 1) as usize][j] = val;
-                                }
-                                else {
-                                    return Err(format!("Error: OOB at column {}, on row {}", j, count));
-                                }
-                            }
-                            Err(err) => {
-                                return Err(format!("Error: Failed to parse column at index {}", err));
-                            }
-                        }
-                    }
-                    if count == myrow {
-                        myboard.boards_add(new_player);
-                        break;
+
+        let mut player = PlayBoard::create_player(play_row, play_col);
+        player.set_playername(player_name.to_string());
+        player.set_playernum(player_num);
+        player_num += 1;
+
+        let mut tmp_ships_hash: HashMap<usize, HashSet<(usize, usize)>> = HashMap::new();
+        let mut current_row: Vec<usize> = Vec::new();
+        let mut row_index = 0;
+
+        for _ in 0..play_row { // Inner loop for each row of the board
+            if let Some(Ok(line)) = lines.next() {
+                current_row.clear();
+                let row_str = line.split(',');
+                for s in row_str{
+                    let val = s.trim().parse().unwrap_or(0);
+                    current_row.push(val);
+                }
+
+                if current_row.len() > play_col {
+                    return Err(Box::new(LoadError {
+                        message: format!("Error: Too many columns in row {} of player {}", row_index + 1, player_num -1).to_string(),
+                    }));
+                }
+
+                for (col_index, &cell) in current_row.iter().enumerate() {
+                    if cell != 0 {
+                        tmp_ships_hash.entry(cell).or_insert_with(HashSet::new).insert((row_index, col_index));
                     }
                 }
+
+                row_index += 1;
+            } else {
+                return Err(Box::new(LoadError {
+                    message: format!("Error: Not enough rows for player {}", player_num).to_string(),
+                }));
             }
         }
+
+        // Process all ships for the current player
+        for (ship_id, ship_parts) in tmp_ships_hash.iter() {
+            // ... (min/max calculation and BoundingBox creation - same as before)
+            let mut min_row = usize::MAX;
+            let mut max_row = usize::MIN;
+            let mut min_col = usize::MAX;
+            let mut max_col = usize::MIN;
+
+            for &(row, col) in ship_parts.iter() {
+                min_row = min_row.min(row);
+                max_row = max_row.max(row);
+                min_col = min_col.min(col);
+                max_col = max_col.max(col);
+            }
+
+            let direction = if max_col > min_col {
+                crate::Direction::Horizontal
+            } else {
+                crate::Direction::Vertical
+            };
+
+            let ship = ShipBoundingBox::new(
+                *ship_id,
+                (min_col, min_row),
+                direction,
+                myboard,
+            );
+            if let Some(s) = ship{
+                player.add_ship(s);
+            }
+        }
+
+        myboard.boards_add(player); // Add the player with their ships
     }
+
     Ok(())
-}
-
-fn load_file(filename: &str, myboard: &mut GameData) ->bool {
-    if filename.is_empty() {             // Empty string for filename
-        return false                           // Return false
-    }
-    match File::open(filename) {
-        Err(err) => utils::handle_file_error(err), 
-        Ok(file) => {                   // File is now open, time to read
-            let reader = BufReader::new(file);
-            let mut lines = reader.lines();
-            for (line_num, line) in lines.by_ref().enumerate() {
-                if line_num < 3{
-                    match load_file_game_data(&line.unwrap(), myboard, line_num as i16) {
-                        Ok(()) => continue,
-                        Err(err) => {
-                            output_string(&err);
-                            return false
-                        }
-                    }
-                }
-                // Now we are into player names and the grids
-                else {
-                    break;
-                }
-            }
-            // Now since we know the size of the boards and the players for loop through each line
-            match load_player_game_data(&mut lines, myboard) {
-                Ok(_) => {
-                    myboard.set_loaded(true);
-                    return true;
-                }
-                Err(err) => {
-                    output_string(&format!("{}",err));
-                    return false;
-                }
-            }
-            
-        }
-    }
 }

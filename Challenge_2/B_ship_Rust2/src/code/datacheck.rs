@@ -34,7 +34,7 @@ pub fn query_array(mybuf: &str, myboard: &mut GameData, playerid: i16) -> Result
             return Err("Invalid column number".to_string());
         }
     };
-
+/*Deprecated since now no longer storing rows 
     let (real_row, real_col) = myboard.get_row_col();
     if row_index <=  real_row as usize && col_index <= real_col as usize{
         match myboard.boards_get_player(playerid as usize) {
@@ -53,4 +53,7 @@ pub fn query_array(mybuf: &str, myboard: &mut GameData, playerid: i16) -> Result
     else {
         Err(format!("Query out of bounds: Row {}, Column {}", row_index + 1, col_index + 1).to_string())
     }
+    */
+    // Fix this, but I think query_array is completely done, likely going to only return hit/miss
+    Ok(1)
 }

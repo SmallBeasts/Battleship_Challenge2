@@ -2,6 +2,8 @@ use crate::code::enums::StateCreate;
 use crate::code::board::GameData;
 use crate::code::utils::output_string;
 use crate::code::enums::RowColErr;
+use crate::code::file;
+use crate::code::board::ShipBoundingBox;
 
 // Function to handle loading files
 pub fn handle_load(
@@ -13,7 +15,7 @@ pub fn handle_load(
         *myboard = create_game();
     }
     if let Some(filename) = args_iter.next() {
-        if load_file(filename, myboard) {
+        if file::load_file(filename, myboard) {
             output_string("File loaded successfully.");
         } else {
             output_string("File was not found, please enter the full path.");

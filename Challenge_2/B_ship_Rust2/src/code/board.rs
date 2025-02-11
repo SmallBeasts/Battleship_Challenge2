@@ -8,7 +8,7 @@ pub struct PlayBoard {
     ships: Vec<BoundingBox>,                    // This is used in create to store only ships
 }
 
-pub fn create_player(rows: usize, cols: usize) -> PlayBoard {
+pub fn create_player() -> PlayBoard {
     PlayBoard {
         playername: String::new(),
         playernum: 0,
@@ -169,12 +169,12 @@ impl GameData {
             None
         }
         else {}
-            Some(self.boards.get(playernum).cloned())
+            Some(self.boards.get(playernum).cloned()?)
     }
 
     pub fn in_bounds(&self, row: usize, col: usize) -> bool{
         if row < self.rows && col < self.cols {
-            true
+            return true;
         }
         false
     }
@@ -201,6 +201,7 @@ pub struct ShipBoundingBox {
     pub end: (usize, usize),
 }
 // Definition of ships and their locations
+// Points are stored in column, row
 impl ShipBoundingBox {
 
     pub fn new(
@@ -208,19 +209,19 @@ impl ShipBoundingBox {
         start: (usize, usize),
         direction: Direction,
         board: &GameData,
-    ) -> Option(ShipBoundingBox) {
+    ) -> Option<ShipBoundingBox> {
         let tmp_end: (usize, usize) = (0,0);
-        if direction == Directio::Vertical                  // Vertical ship
+        if direction == Direction::Vertical                  // Vertical ship
         {
             tmp_end = (start.0 + ship_id, start.1);
         } else {                                            // Horizontal ship
             tmp_end = (start.0, start.1 + ship_id);
         }
         if !board.in_bounds(start.0, start.1) && !board.in_bounds(tmp_end.0, tmp_end.1) {         // Valid for placement
-            return None();
+            return None;
         }
         if start.0 != tmp_end.0 && start.1 != tmp_end.1 {               // Check for diagonal
-            return None();
+            return None;
         }
         Some(ShipBoundingBox {
             ship_id: ship_id,
