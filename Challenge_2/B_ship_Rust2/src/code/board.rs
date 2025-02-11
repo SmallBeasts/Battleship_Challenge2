@@ -6,21 +6,13 @@ pub struct PlayBoard {
     playername: String,
     playernum: usize,
     ships: Vec<BoundingBox>,                    // This is used in create to store only ships
-    mine: Vec<Vec<usize>>
 }
 
 pub fn create_player(rows: usize, cols: usize) -> PlayBoard {
-    let mut mine = Vec::with_capacity(rows as usize);
-
-    for _ in 0..rows {
-        mine.push(vec![0; cols as usize]);
-    }
-
     PlayBoard {
         playername: String::new(),
         playernum: 0,
         ships: Vec::new(),
-        mine: mine
     }
 }
 
@@ -41,12 +33,24 @@ impl PlayBoard {
         self.playernum = num;
     }
 
-    pub fn set_board_loc(&mut self, row: usize, col: usize, val: usize) {
-        self.mine[row][col] = val;
+    pub fn add_ship(&mut self, new_ship: BoundingBox) -> bool {
+        for ship in self.ships {
+            if ship.ship_id == new_ship.ship_id {       // Make sure that this new ship doesn't have the same id as another
+                return false;
+            }
+        }
+        self.ships.push(new_ship);
+        true
     }
 
-    pub fn get_board_loc(&self, row: usize, col: usize) -> usize{
-        self.mine[row][col]
+    // Check if any guess is a hit, if so return ship_id for the hit.
+    pub fn handle_shot(&self, row: usize, col: usize) -> Option<usize>{
+        for ship in self.ships {
+            if ship.point_in_ship(row, col) {       // Hit
+                return Some(ship.ship_id);
+            }
+        }
+        None                                // Miss
     }
 
 }
