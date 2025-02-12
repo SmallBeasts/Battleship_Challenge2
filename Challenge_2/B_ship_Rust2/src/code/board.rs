@@ -1,11 +1,13 @@
 use std::vec;
 use crate::code::enums::Direction;
+use std::collections::HashSet;
 
 // This structure will be the main board per player
 pub struct PlayBoard {
     playername: String,
     playernum: usize,
     ships: Vec<BoundingBox>,                    // This is used in create to store only ships
+    ship_ids: Hash<usize>,
 }
 
 pub fn create_player() -> PlayBoard {
@@ -13,6 +15,7 @@ pub fn create_player() -> PlayBoard {
         playername: String::new(),
         playernum: 0,
         ships: Vec::new(),
+        ship_ids: HashSet::new(),
     }
 }
 
@@ -33,14 +36,20 @@ impl PlayBoard {
         self.playernum = num;
     }
 
-    pub fn add_ship(&mut self, new_ship: BoundingBox) -> bool {
-        for ship in self.ships {
-            if ship.ship_id == new_ship.ship_id {       // Make sure that this new ship doesn't have the same id as another
+    pub fn player_has_ship_id(&self, new_ship_id: usize) -> bool{
+        self.ship_ids.contains(&new_ship_id)
+    }
+
+    pub fn add_ship(&mut self, new_ship: ShipBoundingBox) -> bool {
+        if self.player_has_ship_id(&new_ship.ship_id) {       // Make sure that this new ship doesn't have the same id as another
                 return false;
-            }
         }
         self.ships.push(new_ship);
         true
+    }
+
+    pub fn return_ships(&self) -> &Vec<ShipBoundingBox> {
+        &self.ships
     }
 
     // Check if any guess is a hit, if so return ship_id for the hit.
@@ -52,9 +61,6 @@ impl PlayBoard {
         }
         None                                // Miss
     }
-
-    
-
 }
 
 
@@ -206,16 +212,17 @@ impl ShipBoundingBox {
 
     pub fn new(
         ship_id: usize,
-        start: (usize, usize),
+        start: (usize, usize),                              // Row, Col
         direction: Direction,
         board: &GameData,
+        player: &PlayBoard,
     ) -> Option<ShipBoundingBox> {
         let tmp_end: (usize, usize) = (0,0);
         if direction == Direction::Vertical                  // Vertical ship
         {
-            tmp_end = (start.0 + ship_id, start.1);
+            tmp_end = (start.0 + ship_id - 1, start.1);
         } else {                                            // Horizontal ship
-            tmp_end = (start.0, start.1 + ship_id);
+            tmp_end = (start.0, start.1 + ship_id - 1);
         }
         if !board.in_bounds(start.0, start.1) && !board.in_bounds(tmp_end.0, tmp_end.1) {         // Valid for placement
             return None;
@@ -223,6 +230,16 @@ impl ShipBoundingBox {
         if start.0 != tmp_end.0 && start.1 != tmp_end.1 {               // Check for diagonal
             return None;
         }
+        // Check for collision and ship_id duplicate
+        if player.player_has_ship_id(ship_id) {             // Ship is a duplicate
+            return None;
+        }
+        if player.ships.iter().any(|existing_ship| {                // Check for collision and overlap
+            ShipBoundingBox::overlaps(&ShipBoundingBox{ship_id, start, end: tmp_end}, existing_ship) 
+        }) {
+            return None;
+        } 
+        
         Some(ShipBoundingBox {
             ship_id: ship_id,
             start: (start.0, start.1),
@@ -230,10 +247,49 @@ impl ShipBoundingBox {
             })
     }
 
-    // Check for a collision between ships
-    pub fn collision(&self, other: &ShipBoundingBox) -> bool{
-        (self.start.0 <= other.start.0 && self.end.0 >= other.start.0) &&
-        (self.start.1 <= other.end.1 && self.end.1 >= other.start.1)
+// Check for a collision between ships
+    pub fn overlaps(ship1: &ShipBoundingBox, ship2: &ShipBoundingBox) -> bool {
+        // 1. Check if the bounding boxes intersect at all
+
+        let max_start_col = ship1.start.0.max(ship2.start.0);
+        let min_end_col = ship1.end.0.min(ship2.end.0);
+
+        let max_start_row = ship1.start.1.max(ship2.start.1);
+        let min_end_row = ship1.end.1.min(ship2.end.1);
+
+        if min_end_col < max_start_col || min_end_row < max_start_row {
+            return false; // No intersection, no overlap
+        }
+
+        // 2. If they intersect, check for actual overlap (more detailed)
+
+        // Case 1: ship1 is horizontal
+        if ship1.start.1 == ship1.end.1 {
+            // Case 1a: ship2 is horizontal
+            if ship2.start.1 == ship2.end.1 {
+                return true; // Already checked for intersection above
+            }
+            // Case 1b: ship2 is vertical
+            else {
+                return (ship2.start.0 >= ship1.start.0 && ship2.start.0 <= ship1.end.0) && (ship1.start.1 >= ship2.start.1 && ship1.start.1 <= ship2.end.1);
+            }
+        }
+        // Case 2: ship1 is vertical
+        else {
+            // Case 2a: ship2 is horizontal
+            if ship2.start.1 == ship2.end.1 {
+                return (ship1.start.0 >= ship2.start.0 && ship1.start.0 <= ship2.end.0) && (ship2.start.1 >= ship1.start.1 && ship2.start.1 <= ship1.end.1);
+            }
+            // Case 2b: ship2 is vertical
+            else {
+                return true; // Already checked for intersection above
+            }
+        }
+    }
+
+    pub fn points_collision(&self, other_start: (usize, usize), other_end: (usize, usize)) -> bool {
+        (self.start.0 <= other_start.0 && self.end.0 >= other_start.0) &&
+        (self.start.1 <= other_end.1 && self.end.1 >= other_start.1)
     }
 
     pub fn point_in_ship(&self, row: usize, col: usize) -> bool {

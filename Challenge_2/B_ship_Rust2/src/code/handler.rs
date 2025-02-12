@@ -4,6 +4,7 @@ use crate::code::utils::output_string;
 use crate::code::enums::RowColErr;
 use crate::code::file;
 use crate::code::board::ShipBoundingBox;
+use rand::{Rng, thread_rng};
 
 // Function to handle loading files
 pub fn handle_load(
@@ -173,3 +174,38 @@ pub fn handle_help() {
     );
 }
 
+pub fn handle_random(myboard: &mut GameData, mystate: &mut Vec<StateCreate>) -> bool{
+    if !mystate.contains(&StateCreate::StatePlayer) {
+        output_string("Error: No player currently under creation.");
+        return false;
+    }
+    let (small, large) = myboard.get_shipsizes();
+    let (max_row, max_col) = myboard.get_row_col();
+    let mut ship_count = small;
+    let mut range = thread_rng();
+
+    if let Some(mut myplayer) = myboard.boards_pop_last() {
+        while ship_count <= large {
+            let row = rng.gen_range(0..= max_row);
+            let col = rng.gen_range(0..= max_col);
+            let vert_horz = rng.gen_range(0..= 100);
+            let dir = if vert_horz % 2 == 0 {
+                Direction::Horizontal
+            } else {
+                Direction::Vertical
+            };
+            let my_new_ship = ShipBoundingBox::new(ship_count,  (row, col), dir, myboard, &myplayer);
+            if let Some(ship) = my_new_ship {
+                myplayer.add_ship(ship);
+                ship_count += 1;
+            } else {
+                continue;
+            }
+
+        }
+        myboard.boards_add(myplayer);
+        return true;
+    } else {
+        return false;
+    }
+}
