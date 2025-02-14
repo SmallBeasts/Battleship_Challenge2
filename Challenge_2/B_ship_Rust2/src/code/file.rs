@@ -116,7 +116,7 @@ pub fn load_player_game_data<R: BufRead>(
             }));
         }
 
-        let mut player = PlayBoard::create_player();
+        let mut player = PlayBoard::default();
         player.set_playername(player_name.to_string());
         player.set_playernum(player_num);
         player_num += 1;

@@ -13,7 +13,7 @@ pub fn handle_load(
 {
     // If there is already a board loaded reinitialize
     if myboard.get_loaded() {
-        *myboard = create_game();
+        *myboard = GameData::default();
     }
     if let Some(filename) = args_iter.next() {
         if file::load_file(filename, myboard) {
@@ -26,61 +26,43 @@ pub fn handle_load(
     }
 }
 
-pub fn handle_row_col_error(err: RowColErr, is_row: bool) {
+pub fn handle_row_col_error(err: RowColErr, is_col: bool) {
     let err_msg = match err {
-        RowColErr::Failed => {
-            if is_row {
-                "Error: Row is not a valid value"
-            } else {
-                "Error: Column is not a valid value"
-            }
-        }
-        RowColErr::TooSmall => {
-            if is_row {
-                "Error: Row value must be greater than or equal to 1"
-            } else {
-                "Error: Column value must be greater than or equal to 1"
-            }
-        }
+        RowColErr::Failed => if is_col { "Error: Column is not a valid value" } else { "Error: Row is not a valid value" },
+        RowColErr::TooSmall => if is_col { "Error: Column value must be greater than or equal to 1" } else { "Error: Row value must be greater than or equal to 1" },
         RowColErr::TooBig => {
-            if is_row {
-                &format!("Error: Row value must be less than {}", MAX_SIZE)
-            } else {
-                &format!("Error: Column value must be less than {}", MAX_SIZE)
-            }
+            let max_size = MAX_SIZE;  // Avoid referencing temporary format string
+            return output_string(&format!("Error: {} value must be less than {}", if is_col { "Column" } else { "Row" }, max_size));
         }
     };
-    output_string(err_msg);
+    output_string(&err_msg);
 }
 
 // Handle conversion and storage of row and column data in Create specifically but later probably in load.
 pub fn handle_row_col(
     myboard: &mut GameData, 
     args_iter: &mut std::iter::Skip<std::slice::Iter<String>>, 
-    row_col: bool
+    is_col: bool // ✅ Renamed from row_col
 ) -> Result<(), RowColErr> {
     if let Some(next_value) = args_iter.next() {
         match parse_to_usize(next_value) {
             Ok(value) => {
-                if row_col {
-                    myboard.set_row_or_col(value, true);
-                } else {
-                    myboard.set_row_or_col(value, false);
-                }
-                return Ok(());
+                myboard.set_row_or_col(value, is_col);
+                Ok(())
             }
-            Err(err) => return Err(err),
+            Err(err) => Err(err),
         }
     } else {
-        return Err(RowColErr::Failed);
+        Err(RowColErr::Failed)
     }
 }
+
 
 // Handle function to start the file creation
 pub fn handle_create(myboard: &mut GameData, args_iter: &mut std::iter::Skip<std::slice::Iter<String>>,
                 mystate: &mut Vec<StateCreate>) -> bool {
      // Function call for Create with path
-     let mut myboard = create_game();            // Create a new board to start population
+     *myboard = GameData::default();            // Create a new board to start population
                 
      if let Some(next_guess) = args_iter.next() {
          myboard.filename = next_guess;
@@ -110,12 +92,11 @@ pub fn handle_ships_size(
             Ok(n) => {
                 if mystate.contains(&StateCreate::StateShips) {       // Ships has been called before
                     let (small, large) = myboard.get_shipsizes();
-                    if small > n {                               // Check that the old call was less than the new
-                        myboard.set_shipsizes(n, Some(small));
-                    }
-                    else {
-                        myboard.set_shipsizes(small, Some(n));
-                    }
+                    let new_large = match large {
+                        Some(existing_large) => Some(existing_large.max(n)),
+                        None => Some(n),
+                    };                    
+                    myboard.set_shipsizes(n, new_large);
                 }
                 else {
                     myboard.set_shipsizes(n, None);
@@ -152,8 +133,7 @@ pub fn handle_player(
             output_string(&format!("Error: Found command {} instead of a player name.", next_guess));
             return false;
         }
-        let (row, col) = myboard.get_row_col();
-        let tmp_player = code::board::create_player(row, col);
+        let mut tmp_player = PlayBoard::default();
         tmp_player.set_playername(next_guess);
         tmp_player.set_playernum(myboard.get_boards_len() + 1);
         mystate.push(StateCreate::StatePlayer);
@@ -174,34 +154,39 @@ pub fn handle_help() {
     );
 }
 
-pub fn handle_random(myboard: &mut GameData, mystate: &mut Vec<StateCreate>) -> bool{
+pub fn handle_random(myboard: &mut GameData, mystate: &mut Vec<StateCreate>) -> bool {
     if !mystate.contains(&StateCreate::StatePlayer) {
         output_string("Error: No player currently under creation.");
         return false;
     }
     let (small, large) = myboard.get_shipsizes();
-    let (max_row, max_col) = myboard.get_row_col();
+    let (max_col, max_row) = myboard.get_col_row(); 
     let mut ship_count = small;
-    let mut range = thread_rng();
+    let mut rng = thread_rng();
 
     if let Some(mut myplayer) = myboard.boards_pop_last() {
-        while ship_count <= large {
-            let row = rng.gen_range(0..= max_row);
-            let col = rng.gen_range(0..= max_col);
-            let vert_horz = rng.gen_range(0..= 100);
+        let mut retries = 0;
+        while ship_count <= large && retries < 100 {  // Limit retries to 100
+            let col = rng.gen_range(0..= max_col); 
+            let row = rng.gen_range(0..= max_row); 
+            let vert_horz = rng.gen_range(0..=100);
             let dir = if vert_horz % 2 == 0 {
                 Direction::Horizontal
             } else {
                 Direction::Vertical
             };
-            let my_new_ship = ShipBoundingBox::new(ship_count,  (row, col), dir, myboard, &myplayer);
+
+            let my_new_ship = ShipBoundingBox::new(ship_count, (col, row), dir, myboard, &myplayer); 
             if let Some(ship) = my_new_ship {
                 myplayer.add_ship(ship);
                 ship_count += 1;
+                retries = 0;  // Reset retries on success
             } else {
-                continue;
+                retries += 1;
             }
-
+        }
+        if retries == 100 {
+            output_string("Warning: Could not place all ships after multiple attempts.");
         }
         myboard.boards_add(myplayer);
         return true;

@@ -12,7 +12,7 @@ fn parse_command(mybuf: &str, myboard: &mut GameData) -> bool {
         Some("LOAD") => {
             if myboard.get_loaded() {
                 output_string("A previous board was loaded, now loading new file.");
-                *myboard = board::create_game();
+                *myboard = GameData::default();
             }
             if let Some(filename) = tokens.next() {
                 output_string(&format!("Loading the file <{}>", filename));

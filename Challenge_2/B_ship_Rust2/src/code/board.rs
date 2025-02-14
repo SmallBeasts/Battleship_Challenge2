@@ -7,21 +7,23 @@ pub struct PlayBoard {
     playername: String,
     playernum: usize,
     ships: Vec<BoundingBox>,                    // This is used in create to store only ships
-    ship_ids: Hash<usize>,
+    ship_ids: HashSet<usize>,
 }
 
-pub fn create_player() -> PlayBoard {
-    PlayBoard {
-        playername: String::new(),
-        playernum: 0,
-        ships: Vec::new(),
-        ship_ids: HashSet::new(),
+impl Default for PlayBoard {
+    fn default() -> Self {
+        Self {
+            playername: String::new(),
+            playernum: 0,
+            ships: Vec::new(),
+            ship_ids: HashSet::new(),
+        }
     }
 }
 
 impl PlayBoard {
     pub fn get_playername(&self) -> String {
-        self.playername.clone()
+        &self.playername
     }
 
     pub fn set_playername(&mut self, name: String) {
@@ -41,9 +43,10 @@ impl PlayBoard {
     }
 
     pub fn add_ship(&mut self, new_ship: ShipBoundingBox) -> bool {
-        if self.player_has_ship_id(&new_ship.ship_id) {       // Make sure that this new ship doesn't have the same id as another
+        if self.player_has_ship_id(new_ship.ship_id) {       // Make sure that this new ship doesn't have the same id as another
                 return false;
         }
+
         self.ships.push(new_ship);
         true
     }
@@ -116,11 +119,11 @@ impl GameData {
         Ok(())
     }
 
-    pub fn get_row_col(&self) -> (usize,usize) {
-        (self.rows, self.cols)
+    pub fn get_col_row(&self) -> (usize,usize) {
+        (self.cols, self.rows)
     }
     // Set both rows and columns together if possible
-    pub fn set_row_col(&mut self, row: usize, col: usize) {
+    pub fn set_col_row(&mut self, col: usize, row: usize) {
         self.rows = row;
         self.cols = col;
     }
@@ -162,42 +165,42 @@ impl GameData {
         self.boards.push(board);
     }
 
-    pub fn boards_get_last(&self) -> PlayBoard {
-        Some(self.boards.last().cloned())
+    pub fn boards_get_last(&self) -> Option<&PlayBoard> {
+        if self.boards.is_empty() {
+            return None;
+        }
+        Some(self.boards.last())
     }
 
-    pub fn boards_pop_last(&mut self) -> PlayBoard {
+    pub fn boards_pop_last(&mut self) -> Option<PlayBoard> {
         self.boards.pop()
     }
 
-    pub fn boards_get_player(&self, playernum: usize) -> Option<PlayBoard> {
-        if self.boards.len() < playernum {
+    pub fn boards_get_player(&self, playernum: usize) -> Option<&PlayBoard> {
+        if playernum > self.boards.len() {
             None
         }
-        else {}
-            Some(self.boards.get(playernum).cloned()?)
+        Some(&self.boards.get(playernum))
     }
 
-    pub fn in_bounds(&self, row: usize, col: usize) -> bool{
-        if row < self.rows && col < self.cols {
-            return true;
-        }
-        false
-    }
+    pub fn in_bounds(&self, col: usize, row: usize) -> bool{
+        row < self.rows && col < self.cols
+
 }
 
-// This will create a new game board with empty Vec for boards
-pub fn create_game() -> GameData {
-    GameData {
-        rows: 10,
-        cols: 10,
-        player_count: 1,
-        loaded: false,
-        interactive: false,
-        filename: "".to_string(),
-        smallestship: 2,
-        largestship: 5,
-        boards: Vec::new()
+impl Default for GameData {
+    fn default() -> Self {
+        Self {
+            rows: 10,
+            cols: 10,
+            player_count: 1,
+            loaded: false,
+            interactive: false,
+            filename: "".to_string(),
+            smallestship: 2,
+            largestship: 5,
+            boards: Vec::new()
+        }
     }
 }
 
@@ -206,6 +209,7 @@ pub struct ShipBoundingBox {
     pub start: (usize, usize),
     pub end: (usize, usize),
 }
+
 // Definition of ships and their locations
 // Points are stored in column, row
 impl ShipBoundingBox {
@@ -220,11 +224,11 @@ impl ShipBoundingBox {
         let tmp_end: (usize, usize) = (0,0);
         if direction == Direction::Vertical                  // Vertical ship
         {
-            tmp_end = (start.0 + ship_id - 1, start.1);
+            tmp_end = (start.1 + ship_id - 1, start.0);
         } else {                                            // Horizontal ship
-            tmp_end = (start.0, start.1 + ship_id - 1);
+            tmp_end = (start.1, start.0 + ship_id - 1);
         }
-        if !board.in_bounds(start.0, start.1) && !board.in_bounds(tmp_end.0, tmp_end.1) {         // Valid for placement
+        if !board.in_bounds(start.0, start.1) || !board.in_bounds(tmp_end.0, tmp_end.1) {         // Valid for placement
             return None;
         }
         if start.0 != tmp_end.0 && start.1 != tmp_end.1 {               // Check for diagonal
@@ -248,48 +252,38 @@ impl ShipBoundingBox {
     }
 
 // Check for a collision between ships
-    pub fn overlaps(ship1: &ShipBoundingBox, ship2: &ShipBoundingBox) -> bool {
-        // 1. Check if the bounding boxes intersect at all
+pub fn overlaps(ship1: &ShipBoundingBox, ship2: &ShipBoundingBox) -> bool {
+    // Ship 1 is horizontal
+    let ship1_horizontal = ship1.start.1 == ship1.end.1;
+    // Ship 2 is horizontal
+    let ship2_horizontal = ship2.start.1 == ship2.end.1;
 
-        let max_start_col = ship1.start.0.max(ship2.start.0);
-        let min_end_col = ship1.end.0.min(ship2.end.0);
-
-        let max_start_row = ship1.start.1.max(ship2.start.1);
-        let min_end_row = ship1.end.1.min(ship2.end.1);
-
-        if min_end_col < max_start_col || min_end_row < max_start_row {
-            return false; // No intersection, no overlap
-        }
-
-        // 2. If they intersect, check for actual overlap (more detailed)
-
-        // Case 1: ship1 is horizontal
-        if ship1.start.1 == ship1.end.1 {
-            // Case 1a: ship2 is horizontal
-            if ship2.start.1 == ship2.end.1 {
-                return true; // Already checked for intersection above
-            }
-            // Case 1b: ship2 is vertical
-            else {
-                return (ship2.start.0 >= ship1.start.0 && ship2.start.0 <= ship1.end.0) && (ship1.start.1 >= ship2.start.1 && ship1.start.1 <= ship2.end.1);
-            }
-        }
-        // Case 2: ship1 is vertical
-        else {
-            // Case 2a: ship2 is horizontal
-            if ship2.start.1 == ship2.end.1 {
-                return (ship1.start.0 >= ship2.start.0 && ship1.start.0 <= ship2.end.0) && (ship2.start.1 >= ship1.start.1 && ship2.start.1 <= ship1.end.1);
-            }
-            // Case 2b: ship2 is vertical
-            else {
-                return true; // Already checked for intersection above
-            }
-        }
+    // Exit if both are horizontal and different rows
+    if ship1_horizontal && ship2_horizontal {
+        return ship1.start.0 != ship2.start.0; // Different columns
     }
 
+    // Exit if both vertical but different rows
+    if !ship1_horizontal && !ship2_horizontal {
+        return ship1.start.1 != ship2.start.1; // Different rows
+    }
+
+    // At this point, one is vertical, and one is horizontal
+
+    // Check if horizontal ship's column is within the vertical ship's column
+    if ship1_horizontal {
+        return (ship2.start.0 >= ship1.start.0 && ship2.start.0 <= ship1.end.0) &&
+               (ship1.start.1 >= ship2.start.1 && ship1.start.1 <= ship2.end.1);
+    } else {
+        return (ship1.start.0 >= ship2.start.0 && ship1.start.0 <= ship2.end.0) &&
+               (ship2.start.1 >= ship1.start.1 && ship2.start.1 <= ship1.end.1);
+    }
+}
+
+
     pub fn points_collision(&self, other_start: (usize, usize), other_end: (usize, usize)) -> bool {
-        (self.start.0 <= other_start.0 && self.end.0 >= other_start.0) &&
-        (self.start.1 <= other_end.1 && self.end.1 >= other_start.1)
+        (self.start.1 <= other_start.1 && self.end.1 >= other_start.1) &&
+        (self.start.0 <= other_end.0 && self.end.0 >= other_start.0)
     }
 
     pub fn point_in_ship(&self, row: usize, col: usize) -> bool {
