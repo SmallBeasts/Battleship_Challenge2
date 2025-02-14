@@ -1,4 +1,3 @@
-use std::vec;
 use crate::code::enums::Direction;
 use std::collections::HashSet;
 
@@ -6,7 +5,7 @@ use std::collections::HashSet;
 pub struct PlayBoard {
     playername: String,
     playernum: usize,
-    ships: Vec<BoundingBox>,                    // This is used in create to store only ships
+    ships: Vec<ShipBoundingBox>,                    // This is used in create to store only ships
     ship_ids: HashSet<usize>,
 }
 
@@ -22,7 +21,7 @@ impl Default for PlayBoard {
 }
 
 impl PlayBoard {
-    pub fn get_playername(&self) -> String {
+    pub fn get_playername(&self) -> &String {
         &self.playername
     }
 
@@ -169,7 +168,7 @@ impl GameData {
         if self.boards.is_empty() {
             return None;
         }
-        Some(self.boards.last())
+        self.boards.last()
     }
 
     pub fn boards_pop_last(&mut self) -> Option<PlayBoard> {
@@ -178,13 +177,14 @@ impl GameData {
 
     pub fn boards_get_player(&self, playernum: usize) -> Option<&PlayBoard> {
         if playernum > self.boards.len() {
-            None
+            return None;
         }
-        Some(&self.boards.get(playernum))
+        self.boards.get(playernum)
     }
 
     pub fn in_bounds(&self, col: usize, row: usize) -> bool{
         row < self.rows && col < self.cols
+    }
 
 }
 

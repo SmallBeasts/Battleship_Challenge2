@@ -1,10 +1,13 @@
 use crate::code::enums::StateCreate;
 use crate::code::board::GameData;
 use crate::code::utils::output_string;
-use crate::code::enums::RowColErr;
+use crate::code::enums::{RowColErr, Direction};
+use crate::code::board::PlayBoard;
 use crate::code::file;
 use crate::code::board::ShipBoundingBox;
-use rand::{Rng, thread_rng};
+use rand::{Rng, rng};
+use crate::code::utils;
+use crate::code::enums;
 
 // Function to handle loading files
 pub fn handle_load(
@@ -31,7 +34,7 @@ pub fn handle_row_col_error(err: RowColErr, is_col: bool) {
         RowColErr::Failed => if is_col { "Error: Column is not a valid value" } else { "Error: Row is not a valid value" },
         RowColErr::TooSmall => if is_col { "Error: Column value must be greater than or equal to 1" } else { "Error: Row value must be greater than or equal to 1" },
         RowColErr::TooBig => {
-            let max_size = MAX_SIZE;  // Avoid referencing temporary format string
+            let max_size = enums::MAX_SIZE;  // Avoid referencing temporary format string
             return output_string(&format!("Error: {} value must be less than {}", if is_col { "Column" } else { "Row" }, max_size));
         }
     };
@@ -45,7 +48,7 @@ pub fn handle_row_col(
     is_col: bool // ✅ Renamed from row_col
 ) -> Result<(), RowColErr> {
     if let Some(next_value) = args_iter.next() {
-        match parse_to_usize(next_value) {
+        match utils::parse_to_usize(next_value) {
             Ok(value) => {
                 myboard.set_row_or_col(value, is_col);
                 Ok(())
@@ -88,7 +91,7 @@ pub fn handle_ships_size(
         return false;
     }
     if let Some(next_guess) = args_iter.next() {
-        match code::utils::parse_to_usize(next_guess) {
+        match utils::parse_to_usize(next_guess) {
             Ok(n) => {
                 if mystate.contains(&StateCreate::StateShips) {       // Ships has been called before
                     let (small, large) = myboard.get_shipsizes();
@@ -162,7 +165,7 @@ pub fn handle_random(myboard: &mut GameData, mystate: &mut Vec<StateCreate>) -> 
     let (small, large) = myboard.get_shipsizes();
     let (max_col, max_row) = myboard.get_col_row(); 
     let mut ship_count = small;
-    let mut rng = thread_rng();
+    let mut rng = rng();
 
     if let Some(mut myplayer) = myboard.boards_pop_last() {
         let mut retries = 0;
@@ -193,4 +196,18 @@ pub fn handle_random(myboard: &mut GameData, mystate: &mut Vec<StateCreate>) -> 
     } else {
         return false;
     }
+}
+
+pub fn handle_guess(myboard: &mut GameData, 
+    args_iter: &mut std::iter::Skip<std::slice::Iter<String>>) {
+    output_string("Suck it!");
+}
+
+pub fn handle_verify(myboard: &mut GameData, 
+    args_iter: &mut std::iter::Skip<std::slice::Iter<String>>) {
+    output_string("Suck it!");
+}
+
+pub fn handle_display() {
+    output_string("Suck it!");
 }

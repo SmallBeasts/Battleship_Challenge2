@@ -1,8 +1,8 @@
 use::std;
 
 // Error output for parse to int from string
-const MAX_SIZE: i16 = std::i16::MAX;
-const MIN_SIZE: i16 = std::i16::MIN;
+pub const MAX_SIZE: i16 = std::i16::MAX;
+pub const MIN_SIZE: i16 = std::i16::MIN;
 
 pub enum RowColErr {
     Failed,

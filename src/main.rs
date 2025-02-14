@@ -1,12 +1,6 @@
-use std::collections::btree_map::Values;
 use std::fs::File;
 use std::io::{self, BufRead, stdin, BufReader};
-use std::io::Write;
-use std::ptr::null;
-use std::ptr::null_mut;
 use std::vec;
-use std::fmt;
-use std::process;
 
 
 struct Board {

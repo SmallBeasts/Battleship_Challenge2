@@ -2,6 +2,7 @@ use crate::code::enums::QueryError;
 use crate::code::enums::RowColErr;
 use std::io;
 use std::fmt::Display;
+use crate::code::enums;
 
 // Function that allows for consistent output--Pretty
 pub fn output_string<T: Display + ?Sized>(buf: &T) {
@@ -42,7 +43,7 @@ pub fn parse_to_usize(mystr: &str) -> Result<usize, RowColErr> {
             if n <= 0 {
                 return Err(RowColErr::TooSmall);
             }
-            if n > MAX_SIZE {
+            if n > enums::MAX_SIZE {
                 return Err(RowColErr::TooBig);
             }
             else {

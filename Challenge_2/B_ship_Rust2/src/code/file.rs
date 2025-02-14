@@ -1,8 +1,10 @@
 use std::fs::File;
-use std::io::{self, BufRead, BufReader};
+use std::io::{BufRead, BufReader};
 use crate::code::board::GameData;
-use crate::code::utils::output_string;
-use crate::code::utils::parse_to_usize;
+use crate::code::utils::{output_string, parse_to_usize, handle_file_error};
+use crate::code::enums::RowColErr;
+use crate::code::board::PlayBoard;
+use crate::code::enums::Direction;
 use std::collections::{HashSet, HashMap};
 use std::error::Error;
 use crate::code::board::ShipBoundingBox;
@@ -21,7 +23,7 @@ impl fmt::Display for LoadError {
 
 impl Error for LoadError {} // Implement the Error trait
 
-fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: usize) -> Result<(), String> {
+pub fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: usize) -> Result<(), String> {
     let tmp_line = line;
     if line.is_empty() {
         return Err(format!("Error: Empty line at {}", line_num));
@@ -35,14 +37,15 @@ fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: usize) -> R
                     return Ok(());
                 }
                 Err(err) => {
+                    let mut fail_str = "";
                     match err {
                         RowColErr::TooSmall => {
-                            let fail_str = "Error: Failed to load player correctly, too small.".to_string();
+                            fail_str = "Error: Failed to load player correctly, too small.".to_string();
                         }
                         RowColErr::TooBig => {
-                            let fail_str = "Error: Failed to load player correctly, too big.".to_string();
+                            fail_str = "Error: Failed to load player correctly, too big.".to_string();
                         }
-                        RowColErr::Failed => { let fail_str = "Error: Failed to load player correctly, failed.".to_string();
+                        RowColErr::Failed => {fail_str = "Error: Failed to load player correctly, failed.".to_string();
                         }   
                     }
                     return Err(fail_str);
@@ -57,14 +60,15 @@ fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: usize) -> R
                     return Ok(());
                 }
                 Err(err) => {
+                    let mut fail_str = "";
                     match err {
                         RowColErr::TooSmall => {
-                            let fail_str = "Error: Failed to load player correctly, too small.".to_string();
+                            fail_str = "Error: Failed to load player correctly, too small.".to_string();
                         }
                         RowColErr::TooBig => {
-                            let fail_str = "Error: Failed to load player correctly, too big.".to_string();
+                            fail_str = "Error: Failed to load player correctly, too big.".to_string();
                         }
-                        RowColErr::Failed => { let fail_str = "Error: Failed to load player correctly, failed.".to_string();
+                        RowColErr::Failed => {fail_str = "Error: Failed to load player correctly, failed.".to_string();
                         }   
                     }
                     return Err(fail_str);
@@ -79,14 +83,15 @@ fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: usize) -> R
                     return Ok(());
                 }
                 Err(err) => {
+                    let mut fail_str = "";
                     match err {
                         RowColErr::TooSmall => {
-                            let fail_str = "Error: Failed to load player correctly, too small.".to_string();
+                            fail_str = "Error: Failed to load player correctly, too small.".to_string();
                         }
                         RowColErr::TooBig => {
-                            let fail_str = "Error: Failed to load player correctly, too big.".to_string();
+                            fail_str = "Error: Failed to load player correctly, too big.".to_string();
                         }
-                        RowColErr::Failed => { let fail_str = "Error: Failed to load player correctly, failed.".to_string();
+                        RowColErr::Failed => {fail_str = "Error: Failed to load player correctly, failed.".to_string();
                         }   
                     }
                     return Err(fail_str);
@@ -170,9 +175,9 @@ pub fn load_player_game_data<R: BufRead>(
             }
 
             let direction = if max_col > min_col {
-                crate::Direction::Horizontal
+                Direction::Horizontal
             } else {
-                crate::Direction::Vertical
+                Direction::Vertical
             };
 
             let ship = ShipBoundingBox::new(
@@ -190,4 +195,44 @@ pub fn load_player_game_data<R: BufRead>(
     }
 
     Ok(())
+}
+
+pub fn load_file(filename: &str, myboard: &mut GameData) ->bool {
+    if filename.is_empty() {             // Empty string for filename
+        return false                           // Return false
+    }
+    match File::open(filename) {
+        Err(err) => handle_file_error(err), 
+        Ok(file) => {                   // File is now open, time to read
+            let reader = BufReader::new(file);
+            let mut lines = reader.lines();
+            for (line_num, line) in lines.by_ref().enumerate() {
+                if line_num < 3{
+                    match load_file_game_data(&line.unwrap(), myboard, line_num as i16) {
+                        Ok(()) => continue,
+                        Err(err) => {
+                            output_string(&err);
+                            return false
+                        }
+                    }
+                }
+                // Now we are into player names and the grids
+                else {
+                    break;
+                }
+            }
+            // Now since we know the size of the boards and the players for loop through each line
+            match load_player_game_data(&mut lines, myboard) {
+                Ok(_) => {
+                    myboard.loaded = true;
+                    return true;
+                }
+                Err(err) => {
+                    output_string(&format!("{}",err));
+                    return false;
+                }
+            }
+            
+        }
+    }
 }
