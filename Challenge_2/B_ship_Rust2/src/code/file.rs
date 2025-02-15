@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{BufRead, BufReader};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use crate::code::board::GameData;
 use crate::code::utils::{output_string, parse_to_usize, handle_file_error};
 use crate::code::enums::RowColErr;
@@ -9,6 +9,7 @@ use std::collections::{HashSet, HashMap};
 use std::error::Error;
 use crate::code::board::ShipBoundingBox;
 use std::fmt;
+use crate::code::board;
 
 #[derive(Debug)]
 struct LoadError {
@@ -37,7 +38,7 @@ pub fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: usize) 
                     return Ok(());
                 }
                 Err(err) => {
-                    let mut fail_str = "";
+                    let mut fail_str = "".to_string();
                     match err {
                         RowColErr::TooSmall => {
                             fail_str = "Error: Failed to load player correctly, too small.".to_string();
@@ -60,7 +61,7 @@ pub fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: usize) 
                     return Ok(());
                 }
                 Err(err) => {
-                    let mut fail_str = "";
+                    let mut fail_str = "".to_string();
                     match err {
                         RowColErr::TooSmall => {
                             fail_str = "Error: Failed to load player correctly, too small.".to_string();
@@ -83,7 +84,7 @@ pub fn load_file_game_data(line: &str, myboard: &mut GameData, line_num: usize) 
                     return Ok(());
                 }
                 Err(err) => {
-                    let mut fail_str = "";
+                    let mut fail_str = "".to_string();
                     match err {
                         RowColErr::TooSmall => {
                             fail_str = "Error: Failed to load player correctly, too small.".to_string();
@@ -109,7 +110,7 @@ pub fn load_player_game_data<R: BufRead>(
     lines: &mut std::io::Lines<R>,
     myboard: &mut GameData,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let (play_row, play_col) = myboard.get_row_col();
+    let (play_row, play_col) = myboard.get_col_row();
     let mut player_num = 0;
 
     while let Some(Ok(player_name_line)) = lines.next() { // Outer loop for each player
@@ -185,6 +186,7 @@ pub fn load_player_game_data<R: BufRead>(
                 (min_col, min_row),
                 direction,
                 myboard,
+                &player,
             );
             if let Some(s) = ship{
                 player.add_ship(s);
@@ -208,7 +210,7 @@ pub fn load_file(filename: &str, myboard: &mut GameData) ->bool {
             let mut lines = reader.lines();
             for (line_num, line) in lines.by_ref().enumerate() {
                 if line_num < 3{
-                    match load_file_game_data(&line.unwrap(), myboard, line_num as i16) {
+                    match load_file_game_data(&line.unwrap(), myboard, line_num) {
                         Ok(()) => continue,
                         Err(err) => {
                             output_string(&err);
@@ -224,7 +226,7 @@ pub fn load_file(filename: &str, myboard: &mut GameData) ->bool {
             // Now since we know the size of the boards and the players for loop through each line
             match load_player_game_data(&mut lines, myboard) {
                 Ok(_) => {
-                    myboard.loaded = true;
+                    myboard.set_loaded(true);
                     return true;
                 }
                 Err(err) => {
@@ -235,4 +237,34 @@ pub fn load_file(filename: &str, myboard: &mut GameData) ->bool {
             
         }
     }
+}
+
+pub fn write_file(myboard: &mut GameData) -> bool {
+    let (my_cols, my_rows) = myboard.get_col_row();
+    let file = File::create(myboard.get_filename());
+    match file {
+        Err(err) => {
+            handle_file_error(err);
+            return false;
+        }
+        Ok(myfile) => {
+            let mut writer = BufWriter::new(myfile);
+            writeln!(writer, "{}\n{}\n{}", my_cols, my_rows, myboard.get_playercount());    // Write global data first
+            while let Some(mut playboard) = myboard.remove_first_board() {
+                let tmpboard = board::create_my_board_from_player(myboard, &mut playboard);             // Create a temp board to write
+                for row in tmpboard {
+                    let mut row_str = String::new();
+                    for &val in row.iter() {
+                        row_str.push_str(&val.to_string());
+                        row_str.push(',');
+                    }
+                    if !row_str.is_empty() {
+                        row_str.pop();
+                    }
+                    writeln!(writer, "{}", row_str);
+                }
+            }
+        }
+    }
+    return true;
 }

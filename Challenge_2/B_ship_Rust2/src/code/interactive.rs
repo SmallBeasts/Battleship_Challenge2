@@ -56,7 +56,7 @@ fn parse_command(mybuf: &str, myboard: &mut GameData) -> bool {
                             }
                         }
                     }
-                    match datacheck::query_array(guess, myboard, tmp_id) { // Call query_array directly
+                    match datacheck::query_array(guess, myboard) { // Call query_array directly
                         Ok(value) => results.push(value.to_string()),
                         Err(msg) => {
                             results.push("OOB".to_string());
@@ -87,7 +87,7 @@ fn parse_command(mybuf: &str, myboard: &mut GameData) -> bool {
             return false
         }
         _ => {                  // Handle only commands that are not known commands 0 is default player
-            match datacheck::query_array(upper.as_str(), myboard, 0) {
+            match datacheck::query_array(upper.as_str(), myboard) {
                 Ok(value) => {
                     output_string(&format!("{}", value));
                     return false;

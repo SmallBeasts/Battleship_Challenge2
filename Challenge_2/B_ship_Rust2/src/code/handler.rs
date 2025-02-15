@@ -68,7 +68,7 @@ pub fn handle_create(myboard: &mut GameData, args_iter: &mut std::iter::Skip<std
      *myboard = GameData::default();            // Create a new board to start population
                 
      if let Some(next_guess) = args_iter.next() {
-         myboard.filename = next_guess;
+         myboard.set_filename(next_guess.to_string());
          mystate.push(StateCreate::StateFileName);   // Keep track that a filename was added
          mystate.push(StateCreate::StateCreate);     // Keep track that we are in create
      }
@@ -93,12 +93,11 @@ pub fn handle_ships_size(
     if let Some(next_guess) = args_iter.next() {
         match utils::parse_to_usize(next_guess) {
             Ok(n) => {
-                if mystate.contains(&StateCreate::StateShips) {       // Ships has been called before
-                    let (small, large) = myboard.get_shipsizes();
-                    let new_large = match large {
-                        Some(existing_large) => Some(existing_large.max(n)),
-                        None => Some(n),
-                    };                    
+                if mystate.contains(&StateCreate::StateShips) {
+                    // Ships has been called before
+                    let (small, large) = myboard.get_shipsizes(); // large is already usize
+                    let new_large = Some(large.max(n)); 
+                    
                     myboard.set_shipsizes(n, new_large);
                 }
                 else {
@@ -110,6 +109,7 @@ pub fn handle_ships_size(
                 match err {
                     RowColErr::Failed => output_string("Error: Unable to convert Ships value to integer"),
                     RowColErr::TooSmall => output_string("Error: A ship must be at least 1 or greater"),
+                    RowColErr::TooBig => output_string(&format!("Error: A ship must be smaller than {}", enums::MAX_SIZE)),
                 }
                 return false;
             }
@@ -137,7 +137,7 @@ pub fn handle_player(
             return false;
         }
         let mut tmp_player = PlayBoard::default();
-        tmp_player.set_playername(next_guess);
+        tmp_player.set_playername(next_guess.to_string());
         tmp_player.set_playernum(myboard.get_boards_len() + 1);
         mystate.push(StateCreate::StatePlayer);
         myboard.increment_playercount();
@@ -170,9 +170,9 @@ pub fn handle_random(myboard: &mut GameData, mystate: &mut Vec<StateCreate>) -> 
     if let Some(mut myplayer) = myboard.boards_pop_last() {
         let mut retries = 0;
         while ship_count <= large && retries < 100 {  // Limit retries to 100
-            let col = rng.gen_range(0..= max_col); 
-            let row = rng.gen_range(0..= max_row); 
-            let vert_horz = rng.gen_range(0..=100);
+            let col = rng.random_range(0..= max_col); 
+            let row = rng.random_range(0..= max_row); 
+            let vert_horz = rng.random_range(0..=100);
             let dir = if vert_horz % 2 == 0 {
                 Direction::Horizontal
             } else {
@@ -210,4 +210,8 @@ pub fn handle_verify(myboard: &mut GameData,
 
 pub fn handle_display() {
     output_string("Suck it!");
+}
+
+pub fn handle_write_file(myboard: &mut GameData) {
+    file::write_file(myboard);
 }

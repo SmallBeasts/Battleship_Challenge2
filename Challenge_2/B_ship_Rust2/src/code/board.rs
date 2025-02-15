@@ -56,12 +56,16 @@ impl PlayBoard {
 
     // Check if any guess is a hit, if so return ship_id for the hit.
     pub fn handle_shot(&self, row: usize, col: usize) -> Option<usize>{
-        for ship in self.ships {
+        for ship in &self.ships {
             if ship.point_in_ship(row, col) {       // Hit
                 return Some(ship.ship_id);
             }
         }
         None                                // Miss
+    }
+// Remove the first ship
+    pub fn remove_first_ship(&mut self) -> Option<ShipBoundingBox> {
+        Some(self.ships.remove(0))
     }
 }
 
@@ -109,14 +113,20 @@ impl GameData {
     }
 
     pub fn set_shipsizes(&mut self, small: usize, large: Option<usize>) -> Result<(), &str> {
-        let large_val = large.unwrap_or(small + 5);
-        if small <= 1 || large_val <= 1 {
-            return Err("Error: Ship sizes have to be positive and larger than 1");
+        if small <= 1 {
+            return Err("Error: Smallest ship size must be greater than 1");
         }
+    
+        let large_val = large.unwrap_or(self.largestship.max(small));
+    
+        if large_val <= 1 || large_val < small {
+            return Err("Error: Largest ship size must be at least as large as the smallest ship size and greater than 1");
+        }
+    
         self.smallestship = small;
         self.largestship = large_val;
         Ok(())
-    }
+    }    
 
     pub fn get_col_row(&self) -> (usize,usize) {
         (self.cols, self.rows)
@@ -186,6 +196,10 @@ impl GameData {
         row < self.rows && col < self.cols
     }
 
+    pub fn remove_first_board(&mut self) -> Option<PlayBoard> {
+        Some(self.boards.remove(0))
+    }
+
 }
 
 impl Default for GameData {
@@ -221,7 +235,7 @@ impl ShipBoundingBox {
         board: &GameData,
         player: &PlayBoard,
     ) -> Option<ShipBoundingBox> {
-        let tmp_end: (usize, usize) = (0,0);
+        let mut tmp_end: (usize, usize) = (0,0);
         if direction == Direction::Vertical                  // Vertical ship
         {
             tmp_end = (start.1 + ship_id - 1, start.0);
@@ -293,5 +307,23 @@ pub fn overlaps(ship1: &ShipBoundingBox, ship2: &ShipBoundingBox) -> bool {
             (row == self.start.1) && (col >= self.start.0) && (col <= self.end.0) //Check row and col
         }
     }
+}
 
+// Return an option for 2d matrix with 0's for water and nums for ships
+pub fn create_my_board_from_player(myboard: &GameData, player: &mut PlayBoard) -> Vec<Vec<usize>> {
+    let (my_cols, my_rows) = myboard.get_col_row();
+    let mut tmpboard = vec![vec![0; my_cols]; my_rows];             // Create 0 initialized board
+    while let Some(this_ship) = player.remove_first_ship() {
+        let horizontal = this_ship.start.0 == this_ship.end.0;      // Horizontal true, false otherwise
+        if horizontal {
+            for x in this_ship.start.0 ..= this_ship.end.0 {
+                tmpboard[this_ship.end.1][x] = this_ship.ship_id;
+            }
+        } else {
+            for y in this_ship.start.1 ..= this_ship.end.1 {
+                tmpboard[y][this_ship.start.0] = this_ship.ship_id;
+            }
+        }
+    }
+    tmpboard
 }

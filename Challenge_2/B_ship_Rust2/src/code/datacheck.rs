@@ -2,7 +2,7 @@
 use crate::code::board::GameData;
 
 // Query the array to see what is at each location.  This is mainly for the challenge
-pub fn query_array(mybuf: &str, myboard: &mut GameData, playerid: i16) -> Result<i16, String> {
+pub fn query_array(mybuf: &str, myboard: &mut GameData) -> Result<i16, String> {
     let mut row_str = String::new();
     let mut col_str = String::new();
     if myboard.get_loaded() == false {
