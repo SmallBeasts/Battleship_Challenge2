@@ -181,6 +181,36 @@ pub fn load_player_game_data<R: BufRead>(
                 Direction::Vertical
             };
 
+            if direction == Direction::Horizontal {
+                let mut contiguous = true;
+                for col in min_col..=max_col {
+                    if !ship_parts.contains(&(min_row, col)) {
+                        contiguous = false;
+                        break;
+                    }
+                }
+            
+                if !contiguous || (max_col - min_col + 1) != *ship_id {
+                    return Err(Box::new(LoadError {
+                        message: format!("Error: Ship {} is not properly sized or has gaps", *ship_id),
+                    }));
+                }
+            } else { // Vertical case
+                let mut contiguous = true;
+                for row in min_row..=max_row {
+                    if !ship_parts.contains(&(row, min_col)) {
+                        contiguous = false;
+                        break;
+                    }
+                }
+            
+                if !contiguous || (max_row - min_row + 1) != *ship_id {
+                    return Err(Box::new(LoadError {
+                        message: format!("Error: Ship {} is not properly sized or has gaps", *ship_id),
+                    }));
+                }
+            }
+
             let ship = ShipBoundingBox::new(
                 *ship_id,
                 (min_col, min_row),

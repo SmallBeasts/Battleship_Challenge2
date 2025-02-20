@@ -95,7 +95,7 @@ pub fn handle_ships_size(
             Ok(n) => {
                 if mystate.contains(&StateCreate::StateShips) {
                     // Ships has been called before
-                    let (small, large) = myboard.get_shipsizes(); // large is already usize
+                    let (_small, large) = myboard.get_shipsizes(); // large is already usize
                     let new_large = Some(large.max(n)); 
                     
                     myboard.set_shipsizes(n, new_large);
