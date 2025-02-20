@@ -113,7 +113,7 @@ pub fn load_player_game_data<R: BufRead>(
     let (play_row, play_col) = myboard.get_col_row();
     let mut player_num = 0;
 
-    while let Some(Ok(player_name_line)) = lines.next() { // Outer loop for each player
+    while let Some(Ok(player_name_line)) = lines.next() {
         let player_name = player_name_line.trim();
 
         if player_name.contains(',') || player_name.is_empty() {
@@ -131,24 +131,31 @@ pub fn load_player_game_data<R: BufRead>(
         let mut current_row: Vec<usize> = Vec::new();
         let mut row_index = 0;
 
-        for _ in 0..play_row { // Inner loop for each row of the board
+        for _ in 0..play_row {
             if let Some(Ok(line)) = lines.next() {
                 current_row.clear();
                 let row_str = line.split(',');
-                for s in row_str{
+                for s in row_str {
                     let val = s.trim().parse().unwrap_or(0);
                     current_row.push(val);
                 }
 
                 if current_row.len() > play_col {
                     return Err(Box::new(LoadError {
-                        message: format!("Error: Too many columns in row {} of player {}", row_index + 1, player_num -1).to_string(),
+                        message: format!(
+                            "Error: Too many columns in row {} of player {}",
+                            row_index + 1,
+                            player_num - 1
+                        ),
                     }));
                 }
 
                 for (col_index, &cell) in current_row.iter().enumerate() {
                     if cell != 0 {
-                        tmp_ships_hash.entry(cell).or_insert_with(HashSet::new).insert((row_index, col_index));
+                        tmp_ships_hash
+                            .entry(cell)
+                            .or_insert_with(HashSet::new)
+                            .insert((row_index, col_index));
                     }
                 }
 
@@ -161,69 +168,54 @@ pub fn load_player_game_data<R: BufRead>(
         }
 
         // Process all ships for the current player
-        for (ship_id, ship_parts) in tmp_ships_hash.iter() {
-            // ... (min/max calculation and BoundingBox creation - same as before)
-            let mut min_row = usize::MAX;
-            let mut max_row = usize::MIN;
-            let mut min_col = usize::MAX;
-            let mut max_col = usize::MIN;
+        process_ships(&tmp_ships_hash, &mut player, myboard)?;
 
-            for &(row, col) in ship_parts.iter() {
-                min_row = min_row.min(row);
-                max_row = max_row.max(row);
-                min_col = min_col.min(col);
-                max_col = max_col.max(col);
-            }
+        myboard.boards_add(player);
+    }
 
-            let direction = if max_col > min_col {
-                Direction::Horizontal
-            } else {
-                Direction::Vertical
-            };
+    Ok(())
+}
 
-            if direction == Direction::Horizontal {
-                let mut contiguous = true;
-                for col in min_col..=max_col {
-                    if !ship_parts.contains(&(min_row, col)) {
-                        contiguous = false;
-                        break;
-                    }
-                }
-            
-                if !contiguous || (max_col - min_col + 1) != *ship_id {
-                    return Err(Box::new(LoadError {
-                        message: format!("Error: Ship {} is not properly sized or has gaps", *ship_id),
-                    }));
-                }
-            } else { // Vertical case
-                let mut contiguous = true;
-                for row in min_row..=max_row {
-                    if !ship_parts.contains(&(row, min_col)) {
-                        contiguous = false;
-                        break;
-                    }
-                }
-            
-                if !contiguous || (max_row - min_row + 1) != *ship_id {
-                    return Err(Box::new(LoadError {
-                        message: format!("Error: Ship {} is not properly sized or has gaps", *ship_id),
-                    }));
-                }
-            }
+fn process_ships(
+    tmp_ships_hash: &HashMap<usize, HashSet<(usize, usize)>>,
+    player: &mut PlayBoard,
+    myboard: &GameData,
+) -> Result<(), Box<dyn std::error::Error>> {
+    for (ship_id, ship_parts) in tmp_ships_hash.iter() {
+        let mut min_row = usize::MAX;
+        let mut max_row = usize::MIN;
+        let mut min_col = usize::MAX;
+        let mut max_col = usize::MIN;
 
-            let ship = ShipBoundingBox::new(
-                *ship_id,
-                (min_col, min_row),
-                direction,
-                myboard,
-                &player,
-            );
-            if let Some(s) = ship{
-                player.add_ship(s);
-            }
+        for &(row, col) in ship_parts.iter() {
+            min_row = min_row.min(row);
+            max_row = max_row.max(row);
+            min_col = min_col.min(col);
+            max_col = max_col.max(col);
         }
 
-        myboard.boards_add(player); // Add the player with their ships
+        let direction = if max_col > min_col {
+            Direction::Horizontal
+        } else {
+            Direction::Vertical
+        };
+
+        let is_contiguous = if direction == Direction::Horizontal {
+            (min_col..=max_col).all(|col| ship_parts.contains(&(min_row, col)))
+        } else {
+            (min_row..=max_row).all(|row| ship_parts.contains(&(row, min_col)))
+        };
+
+        if !is_contiguous || (if direction == Direction::Horizontal { max_col - min_col + 1 } else { max_row - min_row + 1 }) != *ship_id {
+            return Err(Box::new(LoadError {
+                message: format!("Error: Ship {} is not properly sized or has gaps", *ship_id),
+            }));
+        }
+
+        let ship = ShipBoundingBox::new(*ship_id, (min_col, min_row), direction, myboard, player);
+        if let Some(s) = ship {
+            player.add_ship(s);
+        }
     }
 
     Ok(())
