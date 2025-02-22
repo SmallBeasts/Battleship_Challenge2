@@ -221,45 +221,31 @@ fn process_ships(
     Ok(())
 }
 
-pub fn load_file(filename: &str, myboard: &mut GameData) ->bool {
-    if filename.is_empty() {             // Empty string for filename
-        return false                           // Return false
+pub fn load_file(filename: &str, myboard: &mut GameData) -> Result<(), String> {
+    if filename.is_empty() {
+        return Err("Error: Filename cannot be empty.".to_string());
     }
-    match File::open(filename) {
-        Err(err) => handle_file_error(err), 
-        Ok(file) => {                   // File is now open, time to read
-            let reader = BufReader::new(file);
-            let mut lines = reader.lines();
-            for (line_num, line) in lines.by_ref().enumerate() {
-                if line_num < 3{
-                    match load_file_game_data(&line.unwrap(), myboard, line_num) {
-                        Ok(()) => continue,
-                        Err(err) => {
-                            output_string(&err);
-                            return false
-                        }
-                    }
-                }
-                // Now we are into player names and the grids
-                else {
-                    break;
-                }
-            }
-            // Now since we know the size of the boards and the players for loop through each line
-            match load_player_game_data(&mut lines, myboard) {
-                Ok(_) => {
-                    myboard.set_loaded(true);
-                    return true;
-                }
-                Err(err) => {
-                    output_string(&format!("{}",err));
-                    return false;
-                }
-            }
-            
+
+    let file = File::open(filename).map_err(|err| format!("Error opening file: {}", err))?;
+    let reader = BufReader::new(file);
+    let mut lines = reader.lines();
+
+    for (line_num, line) in lines.by_ref().enumerate() {
+        if line_num < 3 {
+            let line_content = line.map_err(|_| format!("Error reading line {}", line_num))?;
+            load_file_game_data(&line_content, myboard, line_num)?;
+        } else {
+            break;
         }
     }
+
+    load_player_game_data(&mut lines, myboard)
+        .map_err(|err| format!("Error loading player game data: {}", err))?;
+
+    myboard.set_loaded(true);
+    Ok(())
 }
+
 
 pub fn write_file(myboard: &mut GameData) -> bool {
     let (my_cols, my_rows) = myboard.get_col_row();

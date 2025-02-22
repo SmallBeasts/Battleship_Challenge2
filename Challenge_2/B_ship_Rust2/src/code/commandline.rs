@@ -11,8 +11,11 @@ pub fn command_line_input(myboard: &mut GameData) -> bool{
 
     while let Some(arg) = args_iter.next() {
         match arg.to_uppercase().as_str() {
-            "--LOAD" => {
-                handler::handle_load(myboard, &mut args_iter);
+            "--LOAD" | "--VERIFY" => {
+                match load_file(filename, myboard) {
+                    Ok(_) => println!("File loaded successfully."),
+                    Err(err) => println!("{}", err),
+                }                
             },
             "--HELP" => {
                 handler::handle_help();
@@ -23,9 +26,6 @@ pub fn command_line_input(myboard: &mut GameData) -> bool{
             },
             "--GUESS" => {
                 handler::handle_guess(myboard, &mut args_iter);
-            },
-            "--VERIFY" => {
-                handler::handle_verify(myboard, &mut args_iter);
             },
             "--CREATE" => {
                 if handler::handle_create(myboard, &mut args_iter, &mut mystate) {      // Successful file create
