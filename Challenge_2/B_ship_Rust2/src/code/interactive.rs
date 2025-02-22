@@ -17,10 +17,9 @@ fn parse_command(mybuf: &str, myboard: &mut GameData) -> bool {
             }
             if let Some(filename) = tokens.next() {
                 output_string(&format!("Loading the file <{}>", filename));
-                if file::load_file(filename, myboard) {
-                    output_string("File loaded successfully");
-                } else {
-                    output_string("File failed to load");
+                match file::load_file(filename, myboard) {
+                    Ok(_) => output_string("File loaded successfully"),
+                    Err(err) => output_string(&format!("File failed to load: {}.", err)),
                 }
             } else {
                 output_string("Usage: --load <filename>");

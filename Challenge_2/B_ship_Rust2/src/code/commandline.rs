@@ -11,11 +11,11 @@ pub fn command_line_input(myboard: &mut GameData) -> bool{
 
     while let Some(arg) = args_iter.next() {
         match arg.to_uppercase().as_str() {
-            "--LOAD" | "--VERIFY" => {
-                match load_file(filename, myboard) {
-                    Ok(_) => println!("File loaded successfully."),
-                    Err(err) => println!("{}", err),
-                }                
+            "--LOAD" => {
+                handler::handle_load(myboard, &mut args_iter, false);           
+            },
+            "--VERIFY" => {
+                handler::handle_load(myboard, &mut args_iter, true);
             },
             "--HELP" => {
                 handler::handle_help();
@@ -54,7 +54,10 @@ pub fn command_line_input(myboard: &mut GameData) -> bool{
                 handler::handle_random(myboard, &mut mystate);
             },
             "--DISPLAY" => {
-                handler::handle_display();
+                handler::handle_display(myboard);
+            },
+            "--PLACE" => {
+                handler::handle_place_ship(myboard, &mut args_iter, &mut mystate);
             },
             &_ => {
                 output_string("Error: Unrecognized command.");

@@ -8,21 +8,34 @@ use crate::code::board::ShipBoundingBox;
 use rand::{Rng, rng};
 use crate::code::utils;
 use crate::code::enums;
+use crate::code::enums::QueryError;
 
 // Function to handle loading files
 pub fn handle_load(
     myboard: &mut GameData,
-    args_iter: &mut std::iter::Skip<std::slice::Iter<String>>) 
+    args_iter: &mut std::iter::Skip<std::slice::Iter<String>>, 
+    is_verify: bool) 
 {
     // If there is already a board loaded reinitialize
     if myboard.get_loaded() {
         *myboard = GameData::default();
     }
     if let Some(filename) = args_iter.next() {
-        if file::load_file(filename, myboard) {
-            output_string("File loaded successfully.");
-        } else {
-            output_string("File was not found, please enter the full path.");
+        match file::load_file(filename, myboard) {
+            Ok(_) => {
+                if is_verify {
+                    output_string("Passed: File loaded successfully.");
+                } else {
+                    output_string("File loaded successfully.");
+                }
+            },
+            Err(err) => {
+                if is_verify {
+                    output_string(&format!("Failed: {}", err));
+                } else {
+                     output_string(&format!("Error: Failed to load file: {}", err));
+                }
+            }
         }
     } else {
         output_string("Usage: --load <filename>");
@@ -45,7 +58,7 @@ pub fn handle_row_col_error(err: RowColErr, is_col: bool) {
 pub fn handle_row_col(
     myboard: &mut GameData, 
     args_iter: &mut std::iter::Skip<std::slice::Iter<String>>, 
-    is_col: bool // ✅ Renamed from row_col
+    is_col: bool 
 ) -> Result<(), RowColErr> {
     if let Some(next_value) = args_iter.next() {
         match utils::parse_to_usize(next_value) {
@@ -203,15 +216,135 @@ pub fn handle_guess(myboard: &mut GameData,
     output_string("Suck it!");
 }
 
-pub fn handle_verify(myboard: &mut GameData, 
-    args_iter: &mut std::iter::Skip<std::slice::Iter<String>>) {
-    output_string("Suck it!");
-}
-
-pub fn handle_display() {
+pub fn handle_display(myboard: &mut GameData) {
     output_string("Suck it!");
 }
 
 pub fn handle_write_file(myboard: &mut GameData) {
     file::write_file(myboard);
+}
+
+pub fn handle_place_ship(myboard: &mut GameData, 
+    args_iter: &mut std::iter::Skip<std::slice::Iter<String>>,
+    mystate: &mut Vec<StateCreate>) -> bool{
+
+    if !mystate.contains(&StateCreate::StateCreate) || !mystate.contains(&StateCreate::StatePlayer) {
+        output_string("Error: Called Ships without a valid create and file path or without a player.");
+        return false;
+    }
+    let mut ship_data = Vec::new();
+    while let Some(next_guess) = args_iter.next() {
+        if next_guess.starts_with("--") {
+            output_string("Error: No status for the new ship.");
+            return false;
+        }
+        if next_guess.contains(":") {
+            ship_data.push(next_guess.clone());
+        } else {
+            output_string("Error: Invalid format for ship placement.");
+            return false;
+        }
+    }
+    process_ship_data(ship_data, myboard);
+    true
+}
+
+fn process_ship_data(ship_data: Vec<String>, myboard: &mut GameData) -> bool {
+    for ship in ship_data {
+        let ship_coords: Vec<&str> = ship.split(':').collect();
+        if ship_coords.len() != 3 {
+            output_string("Error: Invalid ship format.");
+            return false;
+        }
+
+        // Parse Ship ID
+        let ship_id = match utils::parse_to_usize(ship_coords[0]) {
+            Ok(ship_tmp) => {
+                let (smallest, largest) = myboard.get_shipsizes();
+                if ship_tmp >= smallest && ship_tmp <= largest {
+                    ship_tmp
+                } else {
+                    output_string("Error: Ship size out of allowed range.");
+                    return false;
+                }
+            }
+            Err(_) => {
+                output_string("Error: Invalid ship size.");
+                return false;
+            }
+        };
+
+        // Parse Coordinates
+        let (my_col, my_row) = match utils::translate_query(ship_coords[1]) {
+            Ok(coords) => coords,
+            Err(err) => {
+                match err {
+                    QueryError::InvalidFormat => output_string("Error: Invalid coordinate format."),
+                    QueryError::InvalidRow => output_string("Error: Invalid row"),
+                    QueryError::InvalidColumn => output_string("Error: Invalid column"),
+                    QueryError::OutOfBounds => output_string("Error: Out of bounds!!"),
+                }
+                return false;
+            }
+        };
+        let coords = ship_coords[1].to_uppercase();
+        let (mut col_str, mut row_str) = (String::new(), String::new());
+        
+        for c in coords.chars() {
+            if c.is_ascii_uppercase() {
+                col_str.push(c);
+            } else if c.is_ascii_digit() {
+                row_str.push(c);
+            } else if !c.is_whitespace() {
+                output_string("Error: Invalid ship entry format.");
+                return false;
+            }
+        }
+
+        if col_str.is_empty() || row_str.is_empty() {
+            output_string("Error: Invalid ship entry format.");
+            return false;
+        }
+
+        let my_row = match utils::parse_to_usize(&row_str) {
+            Ok(n) => n,
+            Err(_) => {
+                output_string("Error: Invalid row number.");
+                return false;
+            }
+        };
+
+        let my_col = utils::base_26(col_str);
+
+        // Parse Direction
+        let up_ship = ship_coords[2].to_uppercase();
+        let direction = match up_ship.as_str() {
+            "V" => Direction::Vertical,
+            "H" => Direction::Horizontal,
+            _ => {
+                output_string("Error: Invalid direction.");
+                return false;
+            }
+        };
+
+        // Retrieve Last Player
+        let mut myplayer = match myboard.boards_pop_last() {
+            Some(player) => player,
+            None => {
+                output_string("Error: No player available.");
+                return false;
+            }
+        };
+
+        // Create Ship
+        if let Some(new_ship) = ShipBoundingBox::new(ship_id, (my_col, my_row), direction, myboard, &myplayer) {
+            myplayer.add_ship(new_ship);
+            myboard.boards_add(myplayer);
+        } else {
+            output_string("Error: Failed to create ship.");
+            return false;
+        }
+    }
+    
+    true
 }

@@ -29,10 +29,10 @@ pub fn handle_player_parse_error(err: &str) -> bool {
 }
 
 // Function to return base 26 for the columns
-pub fn base_26(buf: String) -> i16 {
-    let mut col_index: i16 = 0;
+pub fn base_26(buf: String) -> usize {
+    let mut col_index: usize = 0;
     for c in buf.chars() {
-        col_index = col_index * 26 + (c as u8 - b'A') as i16;
+        col_index = col_index * 26 + (c as u8 - b'A') as usize;
     }
     col_index
 }
@@ -55,7 +55,7 @@ pub fn parse_to_usize(mystr: &str) -> Result<usize, RowColErr> {
 }
 
 // Function to translate a Column Row notation into a query notation
-fn translate_query(mybuf: &str) -> Result<(i16, i16), QueryError> {
+pub fn translate_query(mybuf: &str) -> Result<(usize, usize), QueryError> {
     let mut row_raw = String::new();
     let mut col_raw = String::new();
 
@@ -75,7 +75,7 @@ fn translate_query(mybuf: &str) -> Result<(i16, i16), QueryError> {
 
     let col_index = base_26(col_raw);
 
-    let row_index = row_raw.parse::<i16>().map_err(|_| QueryError::InvalidRow)?;
+    let row_index = row_raw.parse::<usize>().map_err(|_| QueryError::InvalidRow)?;
 
     Ok((col_index, row_index))
 }
