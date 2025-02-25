@@ -54,7 +54,7 @@ pub fn command_line_input(myboard: &mut GameData) -> bool{
                 handler::handle_random(myboard, &mut mystate);
             },
             "--DISPLAY" => {
-                handler::handle_display(myboard);
+                handler::handle_display(myboard, &mut args_iter);
             },
             "--PLACE" => {
                 handler::handle_place_ship(myboard, &mut args_iter, &mut mystate);

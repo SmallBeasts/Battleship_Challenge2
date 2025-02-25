@@ -37,6 +37,10 @@ impl PlayBoard {
         self.playernum = num;
     }
 
+    pub fn get_largest_ship_id(&self) -> Option<usize> {
+        self.ship_ids.iter().copied().max()
+    }
+
     pub fn player_has_ship_id(&self, new_ship_id: usize) -> bool{
         self.ship_ids.contains(&new_ship_id)
     }

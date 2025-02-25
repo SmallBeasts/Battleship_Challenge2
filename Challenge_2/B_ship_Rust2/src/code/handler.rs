@@ -9,6 +9,7 @@ use rand::{Rng, rng};
 use crate::code::utils;
 use crate::code::enums;
 use crate::code::enums::QueryError;
+use crate::code::board;
 
 // Function to handle loading files
 pub fn handle_load(
@@ -223,11 +224,27 @@ pub fn handle_display(myboard: &mut GameData,
             output_string("Error: expected filename and found command.");
             return false;
         }
-        let filename = next_guess;
+        let filename = next_guess;                      // Use the filename given
     }
     else {
-        let filename = myboard.get_filename();
+        let filename = myboard.get_filename();          // Use the filename in the given board
     }
+    while let Some(mut player) = myboard.remove_first_board() {
+        let tmpboard = board::create_my_board_from_player(myboard, &mut player);
+        if let Some(largest) = player.get_largest_ship_id() {
+            let mut x = 1;
+            let mut count: usize = 0;
+            while x < largest {                     // Get the number of digits for padding
+                count += 1;
+                x = x * 10;
+            }
+            utils::display_board(myboard, &tmpboard, count);
+        } else {
+            output_string("Error: No ships enrolled!");
+            return false;
+        }
+    }
+    true
 }
 
 pub fn handle_write_file(myboard: &mut GameData) {
