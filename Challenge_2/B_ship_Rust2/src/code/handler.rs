@@ -216,8 +216,18 @@ pub fn handle_guess(myboard: &mut GameData,
     output_string("Suck it!");
 }
 
-pub fn handle_display(myboard: &mut GameData) {
-    output_string("Suck it!");
+pub fn handle_display(myboard: &mut GameData,
+    args_iter: &mut std::iter::Skip<std::slice::Iter<String>>) -> bool{
+    if let Some(next_guess) = args_iter.next() {
+        if next_guess.starts_with("--") {
+            output_string("Error: expected filename and found command.");
+            return false;
+        }
+        let filename = next_guess;
+    }
+    else {
+        let filename = myboard.get_filename();
+    }
 }
 
 pub fn handle_write_file(myboard: &mut GameData) {
