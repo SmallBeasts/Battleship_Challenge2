@@ -1,7 +1,0 @@
-[package]
-name = "B_ship_Rust2"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-rand = "*"
