@@ -5,7 +5,7 @@ use crate::code::enums::{RowColErr, Direction};
 use crate::code::board::PlayBoard;
 use crate::code::file;
 use crate::code::board::ShipBoundingBox;
-use rand::{Rng, rng};
+use rand::{Rng, random_range};
 use crate::code::utils;
 use crate::code::enums;
 use crate::code::enums::QueryError;
@@ -184,59 +184,53 @@ pub fn handle_random(myboard: &mut GameData, mystate: &mut Vec<StateCreate>) -> 
     let (max_col, max_row) = myboard.get_col_row();
 
     if let Some(mut myplayer) = myboard.boards_pop_last() {
-        let mut rng = rand::thread_rng(); // Initialize random number generator
+        for ship_size in (small..=large).rev() { // Place largest ships first
+            let mut placed = false;
 
-        for ship_size in (small..=large).rev() {  // Place largest ships first
-            let mut valid_positions: HashMap<(usize, usize), Vec<Direction>> = HashMap::new();
+            while !placed {
+                let mut valid_positions: Vec<((usize, usize), Direction)> = Vec::new();
 
-            // Step 1: Find all valid ship placements
-            for row in 0..=max_row {
-                for col in 0..=max_col {
-                    let mut directions = Vec::new();
-
-                    // Check Horizontal Placement
-                    if col + ship_size <= max_col + 1 && !myplayer.check_collision((col, row), ship_size, Direction::Horizontal) {
-                        directions.push(Direction::Horizontal);
-                    }
-                    
-                    // Check Vertical Placement
-                    if row + ship_size <= max_row + 1 && !myplayer.check_collision((col, row), ship_size, Direction::Vertical) {
-                        directions.push(Direction::Vertical);
-                    }
-
-                    if !directions.is_empty() {
-                        valid_positions.insert((col, row), directions);
-                    }
-                }
-            }
-
-            // Step 2: If no valid placement, print a warning
-            if valid_positions.is_empty() {
-                output_string(&format!("Warning: No space for ship size {}", ship_size));
-                continue;
-            }
-
-            // Step 3: Pick a random valid placement
-            let valid_keys: Vec<&(usize, usize)> = valid_positions.keys().collect();
-            if let Some(&(col, row)) = utils::pick_random(&valid_keys) {
-                if let Some(directions) = valid_positions.get(&(*col, *row)) {
-                    if let Some(&dir) = utils::pick_random(directions) {
-                        // Step 4: Place the ship
-                        if let Some(ship) = ShipBoundingBox::new(ship_size, (*col, *row), dir, myboard, &myplayer) {
-                            output_string(&format!("Added ship {}, Col {}, Row {}", ship_size, col, row));
-                            myplayer.add_ship(ship);
+                // Step 1: Find all valid ship placements
+                for row in 0..max_row {
+                    for col in 0..max_col {
+                        // Check Horizontal Placement
+                        if col + ship_size <= max_col && !myplayer.check_collision((col, row), ship_size, Direction::Horizontal) {
+                            valid_positions.push(((col, row), Direction::Horizontal));
+                        }
+                        
+                        // Check Vertical Placement
+                        if row + ship_size <= max_row && !myplayer.check_collision((col, row), ship_size, Direction::Vertical) {
+                            valid_positions.push(((col, row), Direction::Vertical));
                         }
                     }
+                }
+
+                // Step 2: If no valid placement, warn and break (but allow smaller ships to try)
+                if valid_positions.is_empty() {
+                    output_string(&format!("Warning: No space for ship size {}", ship_size));
+                    break;
+                }
+
+                // Step 3: Pick a random valid placement and attempt to place the ship
+                let index = random_range(0..valid_positions.len()); // Ensure a valid index
+                let (position, direction) = valid_positions[index];
+
+                if let Some(ship) = ShipBoundingBox::new(ship_size, position, direction, myboard, &myplayer) {
+                    output_string(&format!("Added ship {}, Col {}, Row {}", ship_size, position.0, position.1));
+                    myplayer.add_ship(ship);
+                    placed = true; // Mark as placed and proceed to the next ship size
                 }
             }
         }
 
-        // Step 5: Add the updated player back to the board
+        // Step 4: Add the updated player back to the board
         myboard.boards_add(myplayer);
         return true;
     }
     false
 }
+
+
 
 
 pub fn handle_guess(myboard: &mut GameData, 

@@ -260,6 +260,7 @@ pub fn write_file(myboard: &mut GameData) -> bool {
             writeln!(writer, "{}\n{}\n{}", my_cols, my_rows, myboard.get_playercount());    // Write global data first
             while let Some(mut playboard) = myboard.remove_first_board() {
                 let tmpboard = board::create_my_board_from_player(myboard, &mut playboard);             // Create a temp board to write
+                writeln!(writer, "{}", playboard.get_playername());
                 for row in tmpboard {
                     let mut row_str = String::new();
                     for &val in row.iter() {

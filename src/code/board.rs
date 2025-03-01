@@ -376,18 +376,22 @@ impl ShipBoundingBox {
 // Return an option for 2d matrix with 0's for water and nums for ships
 pub fn create_my_board_from_player(myboard: &GameData, player: &mut PlayBoard) -> Vec<Vec<usize>> {
     let (my_cols, my_rows) = myboard.get_col_row();
-    let mut tmpboard = vec![vec![0; my_cols]; my_rows];             // Create 0 initialized board
+    let mut tmpboard = vec![vec![0; my_cols]; my_rows];  // Create 0-initialized board
+
     while let Some(this_ship) = player.remove_first_ship() {
-        let horizontal = this_ship.start.0 == this_ship.end.0;      // Horizontal true, false otherwise
-        if horizontal {
-            for x in this_ship.start.0 ..= this_ship.end.0 {
-                tmpboard[this_ship.end.1][x] = this_ship.ship_id;
+        let (x1, y1) = this_ship.start;
+        let (x2, y2) = this_ship.end;
+
+        if y1 == y2 {  // Ship is horizontal
+            for x in x1..=x2 {
+                tmpboard[y1][x] = this_ship.ship_id;
             }
-        } else {
-            for y in this_ship.start.1 ..= this_ship.end.1 {
-                tmpboard[y][this_ship.start.0] = this_ship.ship_id;
+        } else {  // Ship is vertical
+            for y in y1..=y2 {
+                tmpboard[y][x1] = this_ship.ship_id;
             }
         }
     }
+
     tmpboard
 }
