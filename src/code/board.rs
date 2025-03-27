@@ -1,5 +1,7 @@
 use crate::code::enums::Direction;
 use std::collections::HashSet;
+use std::collections::HashMap;
+use crate::code::enums::HitMiss;
 
 // This structure will be the main board per player
 pub struct PlayBoard {
@@ -7,6 +9,7 @@ pub struct PlayBoard {
     playernum: usize,
     ships: Vec<ShipBoundingBox>,                    // This is used in create to store only ships
     ship_ids: HashSet<usize>,
+    guesses: HashMap<String, HitMiss>,
 }
 
 impl Default for PlayBoard {
@@ -16,6 +19,7 @@ impl Default for PlayBoard {
             playernum: 0,
             ships: Vec::new(),
             ship_ids: HashSet::new(),
+            guesses: HashMap::new(),
         }
     }
 }
@@ -51,6 +55,7 @@ impl PlayBoard {
         }
 
         self.ships.push(new_ship);
+        self.ship_ids.push(new_ship.get_ship_id());
         true
     }
 
@@ -85,7 +90,17 @@ impl PlayBoard {
         if self.ships.is_empty() {
             return None;
         }
+        self.ship_ids.remove(self.ships[self.ships[0].get_ship_id()]);
         Some(self.ships.remove(0))
+    }
+
+// Add a guess, returns True if added, False if already present
+    pub fn add_guess(&mut self, guess: String, result: enums::HitMiss) -> Bool {
+        if self.guesses.contains_key(&guess) {
+            false
+        }
+        self.guesses.push(guess, result);
+        true
     }
 }
 
@@ -288,6 +303,9 @@ impl ShipBoundingBox {
             })
     }
 
+    pub fn get_ship_id(&self) -> usize {
+        self.ship_id
+    }
 
     pub fn overlap_possible(
         &self, 

@@ -35,3 +35,10 @@ pub enum Direction {
     Horizontal,
     Vertical,
 }
+
+#[derive(PartialEq, Clone, Copy, Debug)]
+
+pub enum HitMiss {
+    Hit,
+    Miss,
+}

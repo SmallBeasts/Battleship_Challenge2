@@ -7,3 +7,4 @@ pub mod handler;
 pub mod interactive;
 pub mod ship;
 pub mod utils;
+pub mod aistuff;
