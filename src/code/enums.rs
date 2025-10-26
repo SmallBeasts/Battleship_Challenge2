@@ -10,6 +10,12 @@ pub enum RowColErr {
     TooBig,
 }
 
+pub enum Guess {
+    Unknown,
+    Miss,
+    Hit,
+}
+
 // Specific enum to give individual instances as errors.
 pub enum QueryError {
     InvalidFormat,
@@ -41,4 +47,14 @@ pub enum Direction {
 pub enum HitMiss {
     Hit,
     Miss,
+}
+
+pub enum Intelligence {
+    Medium,
+    Hard,
+}
+
+pub enum Mode {
+    Hunt,
+    Targeting,
 }
